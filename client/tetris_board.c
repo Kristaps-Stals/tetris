@@ -108,7 +108,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->width = w;
     
     board->win_h = h+2;
-    board->win_w = w+2;
+    board->win_w = 2*w+2;
     int main_y = (LINES-board->win_h)/2;
     int main_x = (COLS-board->win_w)/2;
     board->win = newwin(board->win_h, board->win_w, main_y, main_x);
@@ -288,7 +288,8 @@ void draw_tetris_board(tetris_board *board) {
         for (int j = 0; j < w; j++) {
             if (board->state[i][j] == -1) continue;
             if (board->state[i][j] == 3) wattron(board->win, A_BOLD);
-            mvwaddch(board->win, i+1, j+1, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            mvwaddch(board->win, i+1, 2*j+1, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            mvwaddch(board->win, i+1, 2*j+2, ' ' | COLOR_PAIR(board->state[i][j]+1));
             if (board->state[i][j] == 3) wattroff(board->win, A_BOLD);
         }
     }
@@ -299,7 +300,8 @@ void draw_tetris_board(tetris_board *board) {
         while (move_tetromino(board, prediction, DIR_DOWN));
         int **pos = get_tetromino_positions(prediction);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, pos[i][1]+1, '@');
+            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, '@');
+            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, '@');
         }
         free_pos(pos);
         free(prediction);
@@ -307,7 +309,8 @@ void draw_tetris_board(tetris_board *board) {
         // draw active tetromino
         pos = get_tetromino_positions(board->active_tetromino);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
         }
         free_pos(pos);        
     }
