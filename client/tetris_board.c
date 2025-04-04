@@ -317,6 +317,19 @@ void draw_tetris_board(tetris_board *board) {
     wrefresh(board->win);
 }
 
-// void deconstruct_tetris_board(tetris_board *board) {
-
-// }
+void deconstruct_tetris_board(tetris_board *board) {
+    delwin(board->win);
+    for(int i = 0; i < board->height; i++) {
+        free(board->state[i]);
+    }
+    free(board->state);
+    free(board->active_tetromino);
+    free(board->counters);
+    free(board->limits);
+    tetris_bag_manager *bag = board->bag_manager;
+    delwin(bag->upcoming);
+    delwin(bag->hold);
+    free(bag->now);
+    free(bag->next);
+    free(board);
+}
