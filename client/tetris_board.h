@@ -10,6 +10,7 @@ typedef struct tetromino {
 
 typedef struct board_counters {
     long long time_since_gravity;
+    int hold_count; // times hold used, resets on hard drop
 } board_counters;
 
 // a single bag
@@ -20,6 +21,8 @@ typedef struct tetris_bag {
 
 typedef struct tetris_bag_manager {
     WINDOW *hold, *upcoming;
+    int hold_x, hold_y, hold_w, hold_h;
+    int upcoming_x, upcoming_y, upcoming_w, upcoming_h;
     tetris_bag *now, *next; // now - current bag, next - bag that will be used after <now> is empty.
     int held_tetromino; // -1 means not hold
     int bag_seed; // current bad seed to ensure everyone has the same bags
@@ -28,6 +31,7 @@ typedef struct tetris_bag_manager {
 // contains all info about a board
 typedef struct tetris_board {
     WINDOW *win;
+    int win_x, win_y; // pos of the top left corner of window
     int width, height; // width and height of the play area NOT THE WINDOW!
     int win_w, win_h; // width and height of THE WINDOW!
     int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos
