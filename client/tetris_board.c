@@ -69,11 +69,20 @@ tetris_bag_manager *construct_bag_manager(tetris_board* board, int seed) {
     manager->next = contstruct_bag(&manager->bag_seed);
     manager->held_tetromino = -1;
 
+    // make hold window
     manager->hold_w = 12;
     manager->hold_h = 6;
     manager->hold_x = board->win_x-manager->hold_w;
     manager->hold_y = board->win_y;
     manager->hold = newwin(manager->hold_h, manager->hold_w, manager->hold_y, manager->hold_x);
+
+    // make upcoming window
+    manager->upcoming_w = 12;
+    manager->upcoming_h = 18;
+    manager->upcoming_x = board->win_x+board->win_w;
+    manager->upcoming_y = board->win_y;
+    manager->upcoming = newwin(manager->upcoming_h, manager->upcoming_w, manager->upcoming_y, manager->upcoming_x);
+
     return manager;
 }
 
@@ -306,6 +315,62 @@ void update_board(tetris_board_update *update) {
     }
 }
 
+// returns array with x tetromino types 
+int *get_next_x_in_bag(tetris_bag_manager *bag, int x) {
+    bool now_is_empty = false;
+    int *ans = malloc(x*sizeof(int));
+    int top_idx = bag->now->top;
+    for (int i = 0; i < x; i++) {
+        if (top_idx < 0) {
+            now_is_empty = true;
+            top_idx = 6;
+        }
+        if (now_is_empty) {
+            ans[i] = bag->next->stack[top_idx];
+        } else {
+            ans[i] = bag->now->stack[top_idx];
+        }
+        top_idx--;
+    }
+    return ans;
+}
+
+void draw_upcoming(tetris_board *board) {
+    tetris_bag_manager *bag = board->bag_manager;
+
+    // clear window
+    for (int i = 0; i < bag->upcoming_h; i++) {
+        for (int j = 0; j < bag->upcoming_w; j++) {
+            mvwaddch(bag->upcoming, i, j, ' ');
+        }
+    }
+
+    // draw window title
+    int mid = (bag->hold_w-4)/2;
+    mvwprintw(bag->upcoming, 1, mid, "NEXT");
+
+    // draw upcoming pieces
+    int *upcoming_types = get_next_x_in_bag(bag, 5);
+    tetromino t;
+    t.rotation = 0;
+    t.x = 0;
+    t.y = 0;
+    for (int i = 0; i < 5; i++) {
+        t.type = upcoming_types[i];
+        int base_y = 3+3*i;
+        int w = get_shape_spawn_width(t.type);
+        int base_x = (bag->upcoming_w-w*2)/2;
+        int **pos = get_tetromino_positions(&t);
+        for (int j = 0; j < 4; j++) {
+            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
+            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
+        }
+    }
+    free(upcoming_types);
+
+    wrefresh(bag->upcoming);
+}
+
 void draw_hold(tetris_board *board) {
     tetris_bag_manager *bag = board->bag_manager;
     for (int i = 0; i < bag->hold_h; i++) {
@@ -385,6 +450,7 @@ void draw_tetris_board(tetris_board *board) {
     wrefresh(board->win);
 
     draw_hold(board);
+    draw_upcoming(board);
 }
 
 void deconstruct_tetris_board(tetris_board *board) {
