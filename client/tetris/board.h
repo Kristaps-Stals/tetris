@@ -11,6 +11,7 @@ typedef struct tetromino {
 typedef struct board_counters {
     long long time_since_gravity;
     int hold_count; // times hold used, resets on hard drop
+    long long total_time_elapsed;
 } board_counters;
 
 // a single bag
@@ -35,8 +36,7 @@ typedef struct tetris_board {
     int width, height; // width and height of the play area NOT THE WINDOW!
     int win_w, win_h; // width and height of THE WINDOW!
     int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos
-
-    // tetris_bag_manager *bag;
+    int highest_tetromino; // highest placed tetromino
 
     tetromino *active_tetromino; // actively falling tetromino
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits

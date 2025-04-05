@@ -83,6 +83,8 @@ int main() {
     init_pair(6, COLOR_MAGENTA, COLOR_MAGENTA);
     init_pair(7, COLOR_RED, COLOR_RED);
 
+    init_pair(10, COLOR_RED, COLOR_BLACK); // used for warning
+
     cbreak(); // or raw(), disables input buffering
     // raw(); // disables signals like ctrl+c
     nodelay(stdscr, TRUE); // doesnt wait for user input

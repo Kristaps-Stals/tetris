@@ -27,6 +27,16 @@ tetromino *deepcpy_tetromino(tetromino *a) {
     return b;
 }
 
+// returns highest placed piece
+int calculate_highest_piece(tetris_board *board){
+    for (int i = 0; i < board->height; i++) {
+        for (int j = 0; j < board->width; j++) {
+            if (board->state[i][j] != -1) return i;
+        }
+    }
+    return board->height; // returns the floor as the highest piece
+}
+
 int **get_tetromino_positions(tetromino *t) {
     int **pos = malloc(4*sizeof(int*));
     for (int i = 0; i < 4; i++) {
@@ -99,9 +109,12 @@ tetromino *construct_tetromino(tetromino_construct_info *info) {
     return ret;
 }
 
-tetromino *take_from_bag(tetris_board *board, tetris_bag_manager *manager) {
+// takes next piece from manager and sets parameters as if its going
+// to be spawned on board. 
+// if only_look is true, the piece will not be actually removed.
+tetromino *take_from_bag(tetris_board *board, tetris_bag_manager *manager, bool only_look) {
     if (manager->now->top < 0) {
-        // now is empty
+        // now is empty, get next bag
         free(manager->now);
         manager->now = manager->next;
         manager->next = contstruct_bag(&manager->bag_seed);
@@ -109,7 +122,7 @@ tetromino *take_from_bag(tetris_board *board, tetris_bag_manager *manager) {
     tetromino_construct_info *tinfo = malloc(sizeof(tetromino_construct_info));
     tinfo->board = board;
     tinfo->id = manager->now->stack[manager->now->top];
-    manager->now->top--;
+    if (only_look == false) manager->now->top--;
     tetromino *ret = construct_tetromino(tinfo);
     free(tinfo);
     return ret;
@@ -132,10 +145,12 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->counters = malloc(sizeof(board_counters));
     board->counters->time_since_gravity = 0;
     board->counters->hold_count = 0;
+    board->counters->total_time_elapsed = 0;
 
     board->limits = malloc(sizeof(board_counters));
     board->limits->time_since_gravity = 1000*250;
     board->limits->hold_count = 1;
+    board->counters->total_time_elapsed = 0;
 
     board->state = (int**)malloc(h*sizeof(int*));
     for (int i = 0; i < h; i++) {
@@ -147,7 +162,9 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     
     board->bag_manager = construct_bag_manager(board, 0); // seed set to 0 currently, change later
 
-    board->active_tetromino = take_from_bag(board, board->bag_manager);
+    board->highest_tetromino = calculate_highest_piece(board);
+
+    board->active_tetromino = take_from_bag(board, board->bag_manager, false);
 
     return board;
 }
@@ -198,11 +215,10 @@ void hard_drop(tetris_board *board) {
     }
     free_pos(pos);
     free(board->active_tetromino);
-    board->active_tetromino = take_from_bag(board, board->bag_manager);
-
-    board->counters->hold_count = 0;
-
     check_line_clear(board);
+    board->active_tetromino = take_from_bag(board, board->bag_manager, false);
+    board->counters->hold_count = 0;
+    board->highest_tetromino = calculate_highest_piece(board);
 }
 
 bool valid_pos(tetromino *test, tetris_board *board) {
@@ -210,7 +226,7 @@ bool valid_pos(tetromino *test, tetris_board *board) {
     for (int i = 0; i < 4; i++) {
         int y = pos[i][0];
         int x = pos[i][1];
-        if (x < 0 || x >= board->width || y >= board->height || board->state[y][x] != -1) {
+        if (x < 0 || x >= board->width || y < 0 || y >= board->height || board->state[y][x] != -1) {
             free_pos(pos);
             return false;
         }
@@ -235,7 +251,7 @@ bool hold_tetromino(tetris_board *board) {
 
     if (board->bag_manager->held_tetromino == -1) {
         // no piece in hold, take from bag
-        board->active_tetromino = take_from_bag(board, board->bag_manager);
+        board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     } else {
         // piece already in hold, take from hold
         tetromino_construct_info *tinfo = malloc(sizeof(tetromino_construct_info));
@@ -255,6 +271,8 @@ void update_board(tetris_board_update *update) {
     tetris_board *board = update->board;
     board_counters *counters = board->counters;
     board_counters *limits = board->limits;
+
+    counters->total_time_elapsed += delta_time;
 
     // user input
     switch(user_input) {
@@ -402,6 +420,20 @@ void draw_tetris_board(tetris_board *board) {
     }
 
     if (board->active_tetromino != NULL) {
+        // draw warning
+        if (board->highest_tetromino <= 5) {
+            tetromino *warning = take_from_bag(board, board->bag_manager, true);
+            int **pos = get_tetromino_positions(warning);
+            int phase = (board->counters->total_time_elapsed/(1000*500))%2; // phase flips 0/1 every 500ms
+            for (int i = 0; i < 4; i++) {
+                if (phase == 1) {
+                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
+                }
+            }
+            free_pos(pos);
+        }
+
         // draw prediction
         tetromino *prediction = deepcpy_tetromino(board->active_tetromino);
         while (move_tetromino(board, prediction, DIR_DOWN));
