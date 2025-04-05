@@ -67,3 +67,5 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings);
 void deconstruct_tetris_board(tetris_board *board); 
 void update_board(tetris_board_update *update);
 void draw_tetris_board(tetris_board *board);
+bool valid_pos(tetromino *test, tetris_board *board);
+tetromino *deepcpy_tetromino(tetromino *a);
