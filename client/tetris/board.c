@@ -1,6 +1,6 @@
 #include <ncurses.h>
 #include <stdlib.h>
-#include "tetris_board.h"
+#include "board.h"
 #include "tetromino_shapes.h"
 typedef long long ll;
 
