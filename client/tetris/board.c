@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "board.h"
 #include "tetromino_shapes.h"
+#include "SRS_rotation.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -216,33 +217,6 @@ bool valid_pos(tetromino *test, tetris_board *board) {
     }
     free_pos(pos);
     return true;
-}
-
-// right = 1, left = 3
-void rotate_tetromino(tetris_board *board, int dir) {
-
-    tetromino *test = deepcpy_tetromino(board->active_tetromino);
-
-    if (dir == 1) {
-        test->rotation++;
-        test->rotation %= 4;
-        if (valid_pos(test, board)) {
-            free(board->active_tetromino);
-            board->active_tetromino = test;
-            return;
-        }
-    }
-
-    if (dir == 3) {
-        test->rotation += 3; // -1 +4
-        test->rotation %= 4;
-        if (valid_pos(test, board)) {
-            free(board->active_tetromino);
-            board->active_tetromino = test;
-            return;
-        }
-    }
-    free(test);
 }
 
 void apply_gravity(tetris_board *board) {
