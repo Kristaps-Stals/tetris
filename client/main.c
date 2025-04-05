@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
-#include "tetris_board.h"
+#include "tetris/board.h"
 
 typedef long long ll;
 
