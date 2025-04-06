@@ -13,6 +13,7 @@ const int board_h = 22+2;
 const int frame_time = 25; // desired time between frames in ms, too low causes flickering
 const struct timespec sleeptime = {0, frame_time*1e6};
 
+// converts timespec struct into a long long
 ll time_ll(struct timespec *x) {
     return (ll)1e9*x->tv_sec+x->tv_nsec;
 }
@@ -26,6 +27,7 @@ void gameloop() {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
+    // tetris settings
     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
     board_settings->bag_seed = 0;
     board_settings->play_height = 22;
@@ -49,6 +51,7 @@ void gameloop() {
         free(upd);
 
         draw_tetris_board(board);
+
         nanosleep(&sleeptime, NULL);
     }
 
@@ -75,13 +78,13 @@ int main() {
     init_color(COLOR_MAGENTA, 600, 0, 1000);
     init_color(COLOR_RED, 1000, 0, 0);
 
-    init_pair(1, COLOR_CYAN, COLOR_CYAN);
-    init_pair(2, COLOR_BLUE, COLOR_BLUE);
-    init_pair(3, 64, 64);
-    init_pair(4, COLOR_YELLOW, COLOR_YELLOW);
-    init_pair(5, COLOR_GREEN, COLOR_GREEN);
-    init_pair(6, COLOR_MAGENTA, COLOR_MAGENTA);
-    init_pair(7, COLOR_RED, COLOR_RED);
+    init_pair(1, COLOR_CYAN, COLOR_CYAN); // I piece
+    init_pair(2, COLOR_BLUE, COLOR_BLUE); // J piece
+    init_pair(3, 64, 64); // L piece
+    init_pair(4, COLOR_YELLOW, COLOR_YELLOW); // O piece
+    init_pair(5, COLOR_GREEN, COLOR_GREEN); // S piece
+    init_pair(6, COLOR_MAGENTA, COLOR_MAGENTA); // T piece
+    init_pair(7, COLOR_RED, COLOR_RED); // Z piece
 
     init_pair(10, COLOR_RED, COLOR_BLACK); // used for warning
 

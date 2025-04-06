@@ -224,10 +224,14 @@ const int shapes[7][4][4][2] =
 
 int shape_spawn_width[7] = {4, 3, 3, 2, 3, 3, 3};
 
+// get tetromino pieces of <type> in <rotation>,
+// i-th blocks j-th coordinate j = 0 means y coordinate, j = 1 means x coordinate.
+// a tetromino consists of 4 blocks.
 int get_shapes(int type, int rotation, int i, int j) {
     return shapes[type][rotation][i][j];
 }
 
+// get tetromino pieces width of type <type> in blocks.
 int get_shape_spawn_width(int type) {
     return shape_spawn_width[type];
 }

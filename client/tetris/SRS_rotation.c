@@ -74,7 +74,9 @@ int I_rot_right[4][5][2] = {
     }
 };
 
-// right = 1, left = 3
+// attempts to rotate active tetromino in <board>
+// on success return true, else false
+// clockwise = 1, counterclockwise = 3
 bool rotate_tetromino(tetris_board *board, int dir) {
 
     tetromino *test = deepcpy_tetromino(board->active_tetromino);

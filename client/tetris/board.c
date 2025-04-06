@@ -37,6 +37,7 @@ int calculate_highest_piece(tetris_board *board){
     return board->height; // returns the floor as the highest piece
 }
 
+// returns array of block positions for tetromino <t>
 int **get_tetromino_positions(tetromino *t) {
     int **pos = malloc(4*sizeof(int*));
     for (int i = 0; i < 4; i++) {
@@ -46,7 +47,7 @@ int **get_tetromino_positions(tetromino *t) {
     }
     return pos;
 }
-void free_pos(int **pos) {
+void free_pos(int **pos) { // frees positions given by get_tetromino_positions()
     for (int i = 0; i < 4; i++) free(pos[i]);
     free(pos);
 }
@@ -73,6 +74,8 @@ tetris_bag *contstruct_bag(int *seed) {
     return bag;
 }
 
+// <board> is used for knowing where to place the hold and upcoming windows.
+// <seed> is used to seed the bag manager.
 tetris_bag_manager *construct_bag_manager(tetris_board* board, int seed) {
     tetris_bag_manager *manager = malloc(sizeof(tetris_bag_manager));
     manager->bag_seed = seed;
@@ -133,15 +136,25 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     int h = settings->play_height;
     int w = settings->play_width;
 
+    // play space
     board->height = h;
     board->width = w;
-    
+    board->state = (int**)malloc(h*sizeof(int*));
+    for (int i = 0; i < h; i++) {
+        board->state[i] = malloc(w*sizeof(int));
+        for (int j = 0; j < w; j++) {
+            board->state[i][j] = -1;
+        }
+    }
+
+    // window
     board->win_h = h+2;
     board->win_w = 2*w+2;
     board->win_y = (LINES-board->win_h)/2;
     board->win_x = (COLS-board->win_w)/2;
     board->win = newwin(board->win_h, board->win_w, board->win_y, board->win_x);
 
+    // counters and limits
     board->counters = malloc(sizeof(board_counters));
     board->counters->time_since_gravity = 0;
     board->counters->hold_count = 0;
@@ -151,24 +164,19 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->limits->time_since_gravity = 1000*250;
     board->limits->hold_count = 1;
     board->counters->total_time_elapsed = 0;
-
-    board->state = (int**)malloc(h*sizeof(int*));
-    for (int i = 0; i < h; i++) {
-        board->state[i] = malloc(w*sizeof(int));
-        for (int j = 0; j < w; j++) {
-            board->state[i][j] = -1;
-        }
-    }
     
+    // tetrominos
     board->bag_manager = construct_bag_manager(board, 0); // seed set to 0 currently, change later
-
-    board->highest_tetromino = calculate_highest_piece(board);
-
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
+
+    // others
+    board->highest_tetromino = calculate_highest_piece(board);
 
     return board;
 }
 
+// checks for full lines in <board> and deletes them.
+// TODO: track/return what lines got cleared
 void check_line_clear(tetris_board *board) {
     for (int i = 0; i < board->height; i++) {
         int bad = 0;
@@ -184,6 +192,7 @@ void check_line_clear(tetris_board *board) {
     }
 }
 
+// returns true if tetromino <t> can move in direction <dir> on <board>, else false.
 bool can_move(tetris_board *board, tetromino *t, int dir) {
     int **pos = get_tetromino_positions(t);
     for (int i = 0; i < 4; i++) {
@@ -198,6 +207,8 @@ bool can_move(tetris_board *board, tetromino *t, int dir) {
     return true;
 }
 
+// attempts to move tetrmonio <t> in direction <dir> on <board>.
+// if succeeds returns true, else false
 bool move_tetromino(tetris_board *board, tetromino *t, int dir) {
     if (!can_move(board, t, dir)) return false;
     t->y += normal_dir[dir][0];
@@ -205,6 +216,7 @@ bool move_tetromino(tetris_board *board, tetromino *t, int dir) {
     return true;
 }
 
+// hard drops the active tetromino in <board>
 void hard_drop(tetris_board *board) {
     while (can_move(board, board->active_tetromino, DIR_DOWN)) move_tetromino(board, board->active_tetromino, DIR_DOWN);
     int **pos = get_tetromino_positions(board->active_tetromino);
@@ -221,6 +233,8 @@ void hard_drop(tetris_board *board) {
     board->highest_tetromino = calculate_highest_piece(board);
 }
 
+// returns true if tetromino <test> (assumed to be an actively falling tetromino)
+// is in a valid position <board>
 bool valid_pos(tetromino *test, tetris_board *board) {
     int **pos = get_tetromino_positions(test);
     for (int i = 0; i < 4; i++) {
@@ -235,6 +249,7 @@ bool valid_pos(tetromino *test, tetris_board *board) {
     return true;
 }
 
+// tries to move the active tetromino in <board> down
 void apply_gravity(tetris_board *board) {
     if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) return;
     hard_drop(board);
@@ -327,6 +342,7 @@ int *get_next_x_in_bag(tetris_bag_manager *bag, int x) {
     return ans;
 }
 
+// draws upcoming pieces window for <board>
 void draw_upcoming(tetris_board *board) {
     tetris_bag_manager *bag = board->bag_manager;
 
@@ -363,15 +379,22 @@ void draw_upcoming(tetris_board *board) {
     wrefresh(bag->upcoming);
 }
 
+// draws hold window for <board>
 void draw_hold(tetris_board *board) {
     tetris_bag_manager *bag = board->bag_manager;
+
+    // clear window
     for (int i = 0; i < bag->hold_h; i++) {
         for (int j = 0; j < bag->hold_w; j++) {
             mvwaddch(bag->hold, i, j, ' ');
         }
     }
+
+    // draw window title
     int mid = (bag->hold_w-4)/2;
     mvwprintw(bag->hold, 1, mid, "HOLD");
+
+    // draw hold piece
     int tetromino_id = board->bag_manager->held_tetromino;
     if (tetromino_id != -1) {
         int w = get_shape_spawn_width(tetromino_id);
@@ -393,11 +416,13 @@ void draw_hold(tetris_board *board) {
     wrefresh(bag->hold);
 }
 
+// draws everything related to the <board>
 void draw_tetris_board(tetris_board *board) {
     // erase();
     // mvprintw(0, 0, "%d", board->active_tetromino->y);
     // werase(board->win);
     
+    // fill background (also erases everything)
     int h = board->height;
     int w = board->width;
     int win_h = board->win_h;
@@ -407,8 +432,11 @@ void draw_tetris_board(tetris_board *board) {
             mvwaddch(board->win, i, j, '.' | A_DIM);
         }
     }
+
+    // draw border
     wborder(board->win, 0, 0, ' ', 0, ' ', ' ', 0, 0);
 
+    // draw already placed blocks
     for (int i = 0; i < h; i++) {
         for (int j = 0; j < w; j++) {
             if (board->state[i][j] == -1) continue;
@@ -455,6 +483,7 @@ void draw_tetris_board(tetris_board *board) {
     }
     wrefresh(board->win);
 
+    // draw other related windows
     draw_hold(board);
     draw_upcoming(board);
 }
