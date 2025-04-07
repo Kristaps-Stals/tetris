@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include "tetris/board.h"
+#include "menus/textbox.h"
 
 typedef long long ll;
 
@@ -35,6 +36,27 @@ void gameloop() {
     tetris_board *board = construct_tetris_board(board_settings);
     free(board_settings);
 
+    // example textbox
+    size_info *pos = make_size_info(10, 10, 1, 1);
+    textbox_element **elems = malloc(3*sizeof(textbox_element*));
+
+    size_info *pos_text1 = make_size_info(3, 3, 1, 1);
+    textbox_text *info_text1 = make_text("hello world!");
+    elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
+
+    size_info *pos_button1 = make_size_info(1, 3, 4, 1);
+    textbox_neighbours *next_button1 = make_neighbours(-1, -1, 2, -1);
+    textbox_button *info_button1 = make_button("op1", 1, next_button1);
+    elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
+
+    size_info *pos_button2 = make_size_info(1, 3, 5, 1);
+    textbox_neighbours *next_button2 = make_neighbours(1, -1, -1, -1);
+    textbox_button *info_button2 = make_button("op2", 2, next_button2);
+    elems[2] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    textbox *test = make_textbox(pos, elems, 3, 1);
+    free(pos);
+
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &now);
         ll delta_time = get_delta_micro_s(&now, &last_time);
@@ -51,11 +73,12 @@ void gameloop() {
         free(upd);
 
         draw_tetris_board(board);
-
+        draw_textbox(test);
         nanosleep(&sleeptime, NULL);
     }
 
     deconstruct_tetris_board(board);
+    free_textbox(test);
 }
 
 int main() {
