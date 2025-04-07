@@ -460,6 +460,7 @@ void draw_tetris_board(tetris_board *board) {
                     mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
                 }
             }
+            free(warning);
             free_pos(pos);
         }
 
