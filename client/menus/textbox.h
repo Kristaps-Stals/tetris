@@ -56,3 +56,5 @@ textbox *make_textbox(size_info *pos, textbox_element **element_list, int elemen
 void free_textbox(textbox *box);
 
 void draw_textbox(textbox *tbox);
+
+int update_textbox(textbox *tbox, int user_input);

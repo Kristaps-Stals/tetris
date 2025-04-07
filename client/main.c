@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "tetris/board.h"
 #include "menus/textbox.h"
+#include "menus/menu_maker.h"
 
 typedef long long ll;
 
@@ -28,57 +29,49 @@ void gameloop() {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
-    // tetris settings
-    tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
-    board_settings->bag_seed = 0;
-    board_settings->play_height = 22;
-    board_settings->play_width = 10;
-    tetris_board *board = construct_tetris_board(board_settings);
-    free(board_settings);
-
-    // example textbox
-    size_info *pos = make_size_info(10, 10, 1, 1);
-    textbox_element **elems = malloc(3*sizeof(textbox_element*));
-
-    size_info *pos_text1 = make_size_info(3, 3, 1, 1);
-    textbox_text *info_text1 = make_text("hello world!");
-    elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
-
-    size_info *pos_button1 = make_size_info(1, 3, 4, 1);
-    textbox_neighbours *next_button1 = make_neighbours(-1, -1, 2, -1);
-    textbox_button *info_button1 = make_button("op1", 1, next_button1);
-    elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
-
-    size_info *pos_button2 = make_size_info(1, 3, 5, 1);
-    textbox_neighbours *next_button2 = make_neighbours(1, -1, -1, -1);
-    textbox_button *info_button2 = make_button("op2", 2, next_button2);
-    elems[2] = make_element(BUTTON_ID, pos_button2, info_button2);
-
-    textbox *test = make_textbox(pos, elems, 3, 1);
-    free(pos);
+    textbox *test = make_main_menu();
+    tetris_board *board = NULL;
+    int state = 0; // 0 = in menus, 1 = playing
 
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &now);
         ll delta_time = get_delta_micro_s(&now, &last_time);
         last_time = now;
         if (delta_time == 0) delta_time = 1;
-
-        // get input and update board
         int user_input = getch();
-        tetris_board_update *upd = malloc(sizeof(tetris_board_update));
-        upd->board = board;
-        upd->delta_time = delta_time;
-        upd->user_input = user_input;
-        update_board(upd);
-        free(upd);
 
-        draw_tetris_board(board);
-        draw_textbox(test);
+
+        switch(state) {
+            case 0:
+                int ret = update_textbox(test, user_input);
+                if (ret == 1) {
+                    state = 1;
+                    // setup tetris
+                    tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
+                    board_settings->bag_seed = 0;
+                    board_settings->play_height = 22;
+                    board_settings->play_width = 10;
+                    board = construct_tetris_board(board_settings);
+                    free(board_settings);
+                }
+                break;
+            case 1:
+                // update board
+                tetris_board_update *upd = malloc(sizeof(tetris_board_update));
+                upd->board = board;
+                upd->delta_time = delta_time;
+                upd->user_input = user_input;
+                update_board(upd);
+                free(upd);
+                draw_tetris_board(board);
+                break;
+        }
+        
         nanosleep(&sleeptime, NULL);
     }
 
-    deconstruct_tetris_board(board);
-    free_textbox(test);
+    if (board != NULL) deconstruct_tetris_board(board);
+    if (test != NULL) free_textbox(test);
 }
 
 int main() {

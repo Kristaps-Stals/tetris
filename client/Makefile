@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -lncurses -Wall -Wextra -I.
 PROG_NAME = tetris_client
-ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o
+ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o
 
 all: $(PROG_NAME)
 
@@ -22,6 +22,9 @@ SRS_rotation.o: tetris/SRS_rotation.c tetris/SRS_rotation.h
 
 textbox.o: menus/textbox.c menus/textbox.h
 	$(CC) -c menus/textbox.c $(CFLAGS)
+
+menu_maker.o: menus/menu_maker.c menus/menu_maker.h
+	$(CC) -c menus/menu_maker.c $(CFLAGS)
 
 clean:
 	rm -f *.o $(PROG_NAME)

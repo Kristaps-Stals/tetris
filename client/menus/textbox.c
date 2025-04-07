@@ -150,3 +150,50 @@ void draw_textbox(textbox *tbox) {
 
     wrefresh(tbox->win);
 }
+
+int update_handle_button(textbox *tbox, int user_input) {
+    textbox_element *selected_elem = tbox->elements[tbox->element_selected];
+    textbox_button *info = selected_elem->info;
+    textbox_neighbours *next = info->neighbour;
+
+    switch(user_input) {
+        case KEY_UP:
+            if (next->up < 0) break;
+            tbox->element_selected = next->up;
+            break;
+        case KEY_RIGHT:
+            if (next->right < 0) break;
+            tbox->element_selected = next->right;
+            break;
+        case KEY_DOWN:
+            if (next->down < 0) break;
+            tbox->element_selected = next->down;
+            break;
+        case KEY_LEFT:
+            if (next->left < 0) break;
+            tbox->element_selected = next->left;
+            break;
+        case 10: // enter key
+        case 'z':
+            // button is pressed
+            return info->trigger_val;
+            break;
+    }
+    return 0;
+}
+
+// returns any signals that are created from elements
+int update_textbox(textbox *tbox, int user_input) {
+    int ret_val = 0;
+
+    // update buttons if valid
+    if (tbox->element_selected >= 0 || tbox->element_selected < tbox->element_count) {
+        textbox_element *selected_elem = tbox->elements[tbox->element_selected];
+        if (selected_elem->type == BUTTON_ID) {
+            ret_val = update_handle_button(tbox, user_input);
+        }
+    }
+    
+    draw_textbox(tbox);
+    return ret_val;
+}
