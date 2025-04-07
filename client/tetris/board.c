@@ -373,6 +373,7 @@ void draw_upcoming(tetris_board *board) {
             mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
             mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
         }
+        free_pos(pos);
     }
     free(upcoming_types);
 
