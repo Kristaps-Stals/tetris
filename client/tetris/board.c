@@ -263,7 +263,8 @@ bool hold_tetromino(tetris_board *board) {
     board->counters->hold_count++;
 
     int our_tetromino = board->active_tetromino->type; // will be in hold after
-
+    free(board->active_tetromino);
+    
     if (board->bag_manager->held_tetromino == -1) {
         // no piece in hold, take from bag
         board->active_tetromino = take_from_bag(board, board->bag_manager, false);
