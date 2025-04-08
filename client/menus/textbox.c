@@ -38,7 +38,6 @@ textbox_text *make_text(char* text) {
     return ret;
 }
 void free_text(textbox_text *text) {
-    free(text->text);
     free(text);
 }
 
@@ -51,7 +50,6 @@ textbox_button *make_button(char* text, int trigger_val, textbox_neighbours *nei
     return button;
 }
 void free_button(textbox_button *button) {
-    free(button->text);
     free(button->neighbour);
     free(button);
 }
@@ -86,10 +84,12 @@ textbox *make_textbox(size_info *pos, textbox_element **element_list, int elemen
     return box;
 }
 void free_textbox(textbox *box) {
+    delwin(box->win);
     free(box->pos);
     for (int i = 0; i < box->element_count; i++) {
         free_element(box->elements[i]);
     }
+    free(box->elements);
     free(box);
 }
 
@@ -187,7 +187,7 @@ int update_textbox(textbox *tbox, int user_input) {
     int ret_val = 0;
 
     // update buttons if valid
-    if (tbox->element_selected >= 0 || tbox->element_selected < tbox->element_count) {
+    if (tbox->element_selected >= 0 && tbox->element_selected < tbox->element_count) {
         textbox_element *selected_elem = tbox->elements[tbox->element_selected];
         if (selected_elem->type == BUTTON_ID) {
             ret_val = update_handle_button(tbox, user_input);

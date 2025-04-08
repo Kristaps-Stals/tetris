@@ -29,9 +29,20 @@ void gameloop() {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
-    textbox *test = make_main_menu();
+    menu_manager *menu_manager_ = make_menu_manager();
     tetris_board *board = NULL;
     int state = 0; // 0 = in menus, 1 = playing
+    mvprintw(LINES-9, 0, "Game:");
+    mvprintw(LINES-8, 0, "  Arrow keys to move right/down/left");
+    mvprintw(LINES-7, 0, "  Z/X - rotate");
+    mvprintw(LINES-6, 0, "  C - hold");
+    mvprintw(LINES-5, 0, "  SPACE - hard drop");
+    mvprintw(LINES-4, 0, "Menu:");
+    mvprintw(LINES-3, 0, "  Arrow keys to move up/right/down/left");
+    mvprintw(LINES-2, 0, "  Z/ENTER - select option");
+    mvprintw(LINES-1, 0, "  X - back");
+
+    refresh();
 
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -43,7 +54,7 @@ void gameloop() {
 
         switch(state) {
             case 0:
-                int ret = update_textbox(test, user_input);
+                int ret = manage_menus(menu_manager_, user_input);
                 if (ret == 1) {
                     state = 1;
                     // setup tetris
@@ -71,7 +82,7 @@ void gameloop() {
     }
 
     if (board != NULL) deconstruct_tetris_board(board);
-    if (test != NULL) free_textbox(test);
+    if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
 }
 
 int main() {

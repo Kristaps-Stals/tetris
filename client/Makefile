@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -lncurses -Wall -Wextra -I.
+CFLAGS = -lncurses -Wall -Wextra -I. -g
 PROG_NAME = tetris_client
 ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o
 
