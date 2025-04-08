@@ -1,6 +1,7 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include "board.h"
+#include <string.h>
 #include "tetromino_shapes.h"
 #include "SRS_rotation.h"
 typedef long long ll;
@@ -189,6 +190,7 @@ void check_line_clear(tetris_board *board) {
                 board->state[ii+1][j] = board->state[ii][j];
             }
         }
+        board->counters->score++;
     }
 }
 
@@ -280,6 +282,51 @@ bool hold_tetromino(tetris_board *board) {
     return true;
 }
 
+void game_over(tetris_board *board) {
+    // clear board, write msg
+    wclear(board->win);
+    box(board->win, 0, 0);
+    int midheight = board->win_h / 2;
+    char msg[100]; // extend or decrease in the future
+    int length;
+
+    sprintf(msg, "GAME OVER");
+    length = (board->win_w - (int)strlen(msg)) / 2;
+    mvwprintw(board->win, midheight - 3, length, "%s", msg);
+
+    sprintf(msg, "Time: %.2f s", board->counters->total_time_elapsed / 1000000.0);
+    length = (board->win_w - (int)strlen(msg)) / 2;
+    mvwprintw(board->win, midheight - 1, length, "%s", msg);
+    
+    sprintf(msg, "Score: %d", board->counters->score);
+    length = (board->win_w - (int)strlen(msg)) / 2;
+    mvwprintw(board->win, midheight, length, "%s", msg);
+    
+    sprintf(msg, "'r' to restart");
+    length = (board->win_w - (int)strlen(msg)) / 2;
+    mvwprintw(board->win, midheight + 2, length, "%s", msg);
+
+    sprintf(msg, "'q' to quit");
+    length = (board->win_w - (int)strlen(msg)) / 2;
+    mvwprintw(board->win, midheight + 3, length, "%s", msg);
+    
+    wrefresh(board->win);
+
+    int ch;
+    while (1) {
+        ch = getch();
+        if (ch == 'r') {
+            // implement restart with consent from two clients :) like a vote
+            return;
+        } else if (ch == 'q') {
+            // quit
+            deconstruct_tetris_board(board);
+            endwin();
+            exit(0);
+        }
+    }
+}
+
 void update_board(tetris_board_update *update) {
     int user_input = update->user_input;
     ll delta_time = update->delta_time;
@@ -319,6 +366,12 @@ void update_board(tetris_board_update *update) {
     while (counters->time_since_gravity > limits->time_since_gravity) {
         counters->time_since_gravity -= limits->time_since_gravity;
         apply_gravity(board);
+    }
+
+    // lose condition
+    if (!valid_pos(board->active_tetromino, board)) {
+        game_over(board);
+        return;
     }
 }
 

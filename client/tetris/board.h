@@ -12,6 +12,7 @@ typedef struct board_counters {
     long long time_since_gravity;
     int hold_count; // times hold used, resets on hard drop
     long long total_time_elapsed;
+    int score;
 } board_counters;
 
 // a single bag
