@@ -1,6 +1,8 @@
+#include "../tetris/board.h"
 #include "textbox.h"
 #include "menu_maker.h"
 #include <stdlib.h>
+#include "string.h"
 
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
@@ -20,12 +22,12 @@ void free_menu_manager(menu_manager *manager) {
 
 textbox *make_main_menu() {
     int w = 20;
-    int h = 4;
+    int h = 5;
     int x = (COLS-w)/2;
     int y = (LINES-h)/2;
 
     size_info *pos = make_size_info(h, w, y, x);
-    int ELEM_CNT = 3;
+    int ELEM_CNT = 4;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     size_info *pos_text1 = make_size_info(1, 9, 0, 2);
@@ -34,14 +36,19 @@ textbox *make_main_menu() {
     elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
 
     size_info *pos_button1 = make_size_info(1, 18, 1, 1);
-    textbox_neighbours *next_button1 = make_neighbours(-1, -1, 2, -1);
+    textbox_neighbours *next_button1 = make_neighbours(3, -1, 2, -1);
     textbox_button *info_button1 = make_button("       play       ", 1, next_button1);
     elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
     size_info *pos_button2 = make_size_info(1, 18, 2, 1);
-    textbox_neighbours *next_button2 = make_neighbours(1, -1, -1, -1);
+    textbox_neighbours *next_button2 = make_neighbours(1, -1, 3, -1);
     textbox_button *info_button2 = make_button("     settings     ", 2, next_button2);
     elems[2] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    size_info *pos_button3 = make_size_info(1, 18, 3, 1);
+    textbox_neighbours *next_button3 = make_neighbours(2, -1, 1, -1);
+    textbox_button *info_button3 = make_button("       quit       ", 3, next_button3);
+    elems[3] = make_element(BUTTON_ID, pos_button3, info_button3);
 
     return make_textbox(pos, elems, ELEM_CNT, 1);
 }
@@ -68,6 +75,50 @@ textbox *make_settings_menu() {
     return make_textbox(pos, elems, ELEM_CNT, 1);
 }
 
+textbox *make_endscreen(tetris_board *board) {
+    int w = 40;
+    int h = 20;
+    int x = (COLS-w)/2;
+    int y = (LINES-h)/2;
+
+    int midh = h/2;
+    char text[100];
+
+    size_info *pos = make_size_info(h, w, y, x);
+    int ELEM_CNT = 5;
+    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
+
+    sprintf(text, "Endscreen");
+    size_info *pos_text1 = make_size_info(1, (int)strlen(text), 0, 2);
+    textbox_text *info_text1 = make_text(text);
+    elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
+
+    sprintf(text, "GAME OVER");
+    int text2_x = (w-(int)strlen(text))/2;
+    size_info *pos_text2 = make_size_info(1, (int)strlen(text), midh-3, text2_x);
+    textbox_text *info_text2 = make_text(text);
+    elems[1] = make_element(TEXT_ID, pos_text2, info_text2);
+
+    sprintf(text, "%.2f s", board->counters->total_time_elapsed / 1000000.0);
+    int text3_x = (w-(int)strlen(text))/2;
+    size_info *pos_text3 = make_size_info(1, (int)strlen(text), midh-1, text3_x);
+    textbox_text *info_text3 = make_text(text);
+    elems[2] = make_element(TEXT_ID, pos_text3, info_text3);
+
+    sprintf(text, "Score: %d", board->counters->score);
+    int text4_x = (w-(int)strlen(text))/2;
+    size_info *pos_text4 = make_size_info(1, (int)strlen(text), midh, text4_x);
+    textbox_text *info_text4 = make_text(text);
+    elems[3] = make_element(TEXT_ID, pos_text4, info_text4);
+    
+    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
+    textbox_neighbours *next_button1 = make_neighbours(-1, -1, -1, -1);
+    textbox_button *info_button1 = make_button("back", -1, next_button1);
+    elems[4] = make_element(BUTTON_ID, pos_button1, info_button1);
+
+    return make_textbox(pos, elems, ELEM_CNT, 4);
+}
+
 // tries to open <new_menu>, returns true on success, false of failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
     if (manager->top == manager->max_stack) return false;
@@ -92,7 +143,7 @@ int update_menus(menu_manager *manager, int user_input) {
 
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
-    if ((ret == -1 || user_input == 'x') && top > 0) {
+    if (ret == -1 || user_input == 'x') {
         // go back one layer
         pop_menu_stack(manager);
     }
@@ -109,11 +160,14 @@ int manage_menus(menu_manager *manager, int user_input) {
     int ret = 0;
     // what each button trigger val does
     switch(update_result) {
-        case 1:
+        case 1: // play game
             ret = 1;
             break;
-        case 2:
+        case 2: // open settings
             open_menu(manager, make_settings_menu());
+            break;
+        case 3: // quit game
+            while (manager->top >= 0) pop_menu_stack(manager);
             break;
     }
     return ret;

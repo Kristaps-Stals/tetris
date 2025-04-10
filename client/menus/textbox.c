@@ -11,6 +11,14 @@ int char_len(char* s) {
     return x;
 }
 
+char* copy_text(char* s) {
+    int siz = char_len(s);
+    char* ret = malloc(siz+1);
+    for (int i = 0; i < siz; i++) ret[i] = s[i];
+    ret[siz] = 0;
+    return ret;
+}
+
 size_info *make_size_info(int h, int w, int y, int x) {
     size_info *info = malloc(sizeof(size_info));
     info->h = h;
@@ -33,23 +41,25 @@ textbox_neighbours *make_neighbours(int up, int right, int down, int left) {
 
 textbox_text *make_text(char* text) {
     textbox_text *ret = malloc(sizeof(textbox_text));
-    ret->text = text;
+    ret->text = copy_text(text);
     ret->text_len = char_len(text);
     return ret;
 }
 void free_text(textbox_text *text) {
+    free(text->text);
     free(text);
 }
 
 textbox_button *make_button(char* text, int trigger_val, textbox_neighbours *neighbours) {
     textbox_button *button = malloc(sizeof(textbox_button));
-    button->text = text;
+    button->text = copy_text(text);
     button->text_len = char_len(text);
     button->neighbour = neighbours;
     button->trigger_val = trigger_val;
     return button;
 }
 void free_button(textbox_button *button) {
+    free(button->text);
     free(button->neighbour);
     free(button);
 }

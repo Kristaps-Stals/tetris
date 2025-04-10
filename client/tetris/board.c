@@ -1,9 +1,9 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include "board.h"
-#include <string.h>
 #include "tetromino_shapes.h"
 #include "SRS_rotation.h"
+#include <time.h>
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -160,14 +160,16 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->counters->time_since_gravity = 0;
     board->counters->hold_count = 0;
     board->counters->total_time_elapsed = 0;
+    board->counters->score = 0;
 
     board->limits = malloc(sizeof(board_counters));
     board->limits->time_since_gravity = 1000*250;
     board->limits->hold_count = 1;
-    board->counters->total_time_elapsed = 0;
+    board->limits->total_time_elapsed = 0;
+    board->limits->score = 0;
     
     // tetrominos
-    board->bag_manager = construct_bag_manager(board, 0); // seed set to 0 currently, change later
+    board->bag_manager = construct_bag_manager(board, time(NULL));
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
 
     // others
@@ -283,52 +285,8 @@ bool hold_tetromino(tetris_board *board) {
     return true;
 }
 
-void game_over(tetris_board *board) {
-    // clear board, write msg
-    wclear(board->win);
-    box(board->win, 0, 0);
-    int midheight = board->win_h / 2;
-    char msg[100]; // extend or decrease in the future
-    int length;
-
-    sprintf(msg, "GAME OVER");
-    length = (board->win_w - (int)strlen(msg)) / 2;
-    mvwprintw(board->win, midheight - 3, length, "%s", msg);
-
-    sprintf(msg, "Time: %.2f s", board->counters->total_time_elapsed / 1000000.0);
-    length = (board->win_w - (int)strlen(msg)) / 2;
-    mvwprintw(board->win, midheight - 1, length, "%s", msg);
-    
-    sprintf(msg, "Score: %d", board->counters->score);
-    length = (board->win_w - (int)strlen(msg)) / 2;
-    mvwprintw(board->win, midheight, length, "%s", msg);
-    
-    sprintf(msg, "'r' to restart");
-    length = (board->win_w - (int)strlen(msg)) / 2;
-    mvwprintw(board->win, midheight + 2, length, "%s", msg);
-
-    sprintf(msg, "'q' to quit");
-    length = (board->win_w - (int)strlen(msg)) / 2;
-    mvwprintw(board->win, midheight + 3, length, "%s", msg);
-    
-    wrefresh(board->win);
-
-    int ch;
-    while (1) {
-        ch = getch();
-        if (ch == 'r') {
-            // implement restart with consent from two clients :) like a vote
-            return;
-        } else if (ch == 'q') {
-            // quit
-            deconstruct_tetris_board(board);
-            endwin();
-            exit(0);
-        }
-    }
-}
-
-void update_board(tetris_board_update *update) {
+// returns 1 if game ended (0 otherwise)
+int update_board(tetris_board_update *update) {
     int user_input = update->user_input;
     ll delta_time = update->delta_time;
     tetris_board *board = update->board;
@@ -371,9 +329,11 @@ void update_board(tetris_board_update *update) {
 
     // lose condition
     if (!valid_pos(board->active_tetromino, board)) {
-        game_over(board);
-        return;
+        return 1;
     }
+
+    draw_tetris_board(board);
+    return 0;
 }
 
 // returns array with x tetromino types 
@@ -544,7 +504,21 @@ void draw_tetris_board(tetris_board *board) {
     draw_upcoming(board);
 }
 
+void free_bag_manager(tetris_bag_manager *bag) {
+    werase(bag->upcoming);
+    wrefresh(bag->upcoming);
+    delwin(bag->upcoming);
+    werase(bag->hold);
+    wrefresh(bag->hold);
+    delwin(bag->hold);
+    free(bag->now);
+    free(bag->next);
+    free(bag);
+}
+
 void deconstruct_tetris_board(tetris_board *board) {
+    werase(board->win);
+    wrefresh(board->win);
     delwin(board->win);
     for(int i = 0; i < board->height; i++) {
         free(board->state[i]);
@@ -553,11 +527,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free(board->active_tetromino);
     free(board->counters);
     free(board->limits);
-    tetris_bag_manager *bag = board->bag_manager;
-    delwin(bag->upcoming);
-    delwin(bag->hold);
-    free(bag->now);
-    free(bag->next);
-    free(bag);
+    free_bag_manager(board->bag_manager);
     free(board);
 }

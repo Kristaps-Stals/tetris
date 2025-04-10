@@ -51,10 +51,10 @@ void gameloop() {
         if (delta_time == 0) delta_time = 1;
         int user_input = getch();
 
-
+        int ret;
         switch(state) {
             case 0:
-                int ret = manage_menus(menu_manager_, user_input);
+                ret = manage_menus(menu_manager_, user_input);
                 if (ret == 1) {
                     state = 1;
                     // setup tetris
@@ -72,16 +72,21 @@ void gameloop() {
                 upd->board = board;
                 upd->delta_time = delta_time;
                 upd->user_input = user_input;
-                update_board(upd);
+                ret = update_board(upd);
                 free(upd);
-                draw_tetris_board(board);
+                if (ret == 1) {
+                    // go back to menus
+                    state = 0;
+                    open_menu(menu_manager_, make_endscreen(board));
+                    if (board != NULL) deconstruct_tetris_board(board);
+                }
                 break;
         }
+        if (menu_manager_->top < 0) break; // if close all menus quit game
         
         nanosleep(&sleeptime, NULL);
     }
 
-    if (board != NULL) deconstruct_tetris_board(board);
     if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
 }
 
