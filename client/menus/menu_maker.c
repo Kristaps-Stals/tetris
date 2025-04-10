@@ -92,7 +92,7 @@ int update_menus(menu_manager *manager, int user_input) {
 
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
-    if (ret == -1 && top > 0) {
+    if ((ret == -1 || user_input == 'x') && top > 0) {
         // go back one layer
         pop_menu_stack(manager);
     }
