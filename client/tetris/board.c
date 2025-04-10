@@ -558,5 +558,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     delwin(bag->hold);
     free(bag->now);
     free(bag->next);
+    free(bag);
     free(board);
 }

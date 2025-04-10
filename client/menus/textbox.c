@@ -93,7 +93,7 @@ void free_textbox(textbox *box) {
     free(box);
 }
 
-void draw_text(WINDOW *win, textbox_element *element, int is_selected) {
+void draw_text(WINDOW *win, textbox_element *element) {
     size_info *pos = element->pos;
     textbox_text *info = element->info;
     char *text = info->text;
@@ -128,7 +128,7 @@ void draw_button(WINDOW *win, textbox_element *element, int is_selected) {
 void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
     switch(element->type) {
         case TEXT_ID:
-            draw_text(win, element, is_selected);
+            draw_text(win, element);
             break;
         case BUTTON_ID:
             draw_button(win, element, is_selected);
