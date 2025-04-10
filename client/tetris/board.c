@@ -265,7 +265,8 @@ bool hold_tetromino(tetris_board *board) {
     board->counters->hold_count++;
 
     int our_tetromino = board->active_tetromino->type; // will be in hold after
-
+    free(board->active_tetromino);
+    
     if (board->bag_manager->held_tetromino == -1) {
         // no piece in hold, take from bag
         board->active_tetromino = take_from_bag(board, board->bag_manager, false);
@@ -513,6 +514,7 @@ void draw_tetris_board(tetris_board *board) {
                     mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
                 }
             }
+            free(warning);
             free_pos(pos);
         }
 

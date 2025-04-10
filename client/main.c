@@ -5,6 +5,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include "tetris/board.h"
+#include "menus/textbox.h"
+#include "menus/menu_maker.h"
 
 typedef long long ll;
 
@@ -27,35 +29,60 @@ void gameloop() {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
-    // tetris settings
-    tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
-    board_settings->bag_seed = 0;
-    board_settings->play_height = 22;
-    board_settings->play_width = 10;
-    tetris_board *board = construct_tetris_board(board_settings);
-    free(board_settings);
+    menu_manager *menu_manager_ = make_menu_manager();
+    tetris_board *board = NULL;
+    int state = 0; // 0 = in menus, 1 = playing
+    mvprintw(LINES-9, 0, "Game:");
+    mvprintw(LINES-8, 0, "  Arrow keys to move right/down/left");
+    mvprintw(LINES-7, 0, "  Z/X - rotate");
+    mvprintw(LINES-6, 0, "  C - hold");
+    mvprintw(LINES-5, 0, "  SPACE - hard drop");
+    mvprintw(LINES-4, 0, "Menu:");
+    mvprintw(LINES-3, 0, "  Arrow keys to move up/right/down/left");
+    mvprintw(LINES-2, 0, "  Z/ENTER - select option");
+    mvprintw(LINES-1, 0, "  X - back");
+
+    refresh();
 
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &now);
         ll delta_time = get_delta_micro_s(&now, &last_time);
         last_time = now;
         if (delta_time == 0) delta_time = 1;
-
-        // get input and update board
         int user_input = getch();
-        tetris_board_update *upd = malloc(sizeof(tetris_board_update));
-        upd->board = board;
-        upd->delta_time = delta_time;
-        upd->user_input = user_input;
-        update_board(upd);
-        free(upd);
 
-        draw_tetris_board(board);
 
+        switch(state) {
+            case 0:
+                int ret = manage_menus(menu_manager_, user_input);
+                if (ret == 1) {
+                    state = 1;
+                    // setup tetris
+                    tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
+                    board_settings->bag_seed = 0;
+                    board_settings->play_height = 22;
+                    board_settings->play_width = 10;
+                    board = construct_tetris_board(board_settings);
+                    free(board_settings);
+                }
+                break;
+            case 1:
+                // update board
+                tetris_board_update *upd = malloc(sizeof(tetris_board_update));
+                upd->board = board;
+                upd->delta_time = delta_time;
+                upd->user_input = user_input;
+                update_board(upd);
+                free(upd);
+                draw_tetris_board(board);
+                break;
+        }
+        
         nanosleep(&sleeptime, NULL);
     }
 
-    deconstruct_tetris_board(board);
+    if (board != NULL) deconstruct_tetris_board(board);
+    if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
 }
 
 int main() {
