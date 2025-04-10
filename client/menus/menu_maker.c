@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include "string.h"
 
+enum {
+    CLOSE_MENU = -1,
+    START_GAME = 1,
+    OPEN_SETTINGS = 2,
+};
+
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
     manager->max_stack = 10;
@@ -37,17 +43,17 @@ textbox *make_main_menu() {
 
     size_info *pos_button1 = make_size_info(1, 18, 1, 1);
     textbox_neighbours *next_button1 = make_neighbours(3, -1, 2, -1);
-    textbox_button *info_button1 = make_button("       play       ", 1, next_button1);
+    textbox_button *info_button1 = make_button("       play       ", START_GAME, next_button1);
     elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
     size_info *pos_button2 = make_size_info(1, 18, 2, 1);
     textbox_neighbours *next_button2 = make_neighbours(1, -1, 3, -1);
-    textbox_button *info_button2 = make_button("     settings     ", 2, next_button2);
+    textbox_button *info_button2 = make_button("     settings     ", OPEN_SETTINGS, next_button2);
     elems[2] = make_element(BUTTON_ID, pos_button2, info_button2);
 
     size_info *pos_button3 = make_size_info(1, 18, 3, 1);
     textbox_neighbours *next_button3 = make_neighbours(2, -1, 1, -1);
-    textbox_button *info_button3 = make_button("       quit       ", 3, next_button3);
+    textbox_button *info_button3 = make_button("       quit       ", CLOSE_MENU, next_button3);
     elems[3] = make_element(BUTTON_ID, pos_button3, info_button3);
 
     return make_textbox(pos, elems, ELEM_CNT, 1);
@@ -69,7 +75,7 @@ textbox *make_settings_menu() {
 
     size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
     textbox_neighbours *next_button1 = make_neighbours(-1, -1, -1, -1);
-    textbox_button *info_button1 = make_button("back", -1, next_button1);
+    textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
     elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
     return make_textbox(pos, elems, ELEM_CNT, 1);
@@ -113,7 +119,7 @@ textbox *make_endscreen(tetris_board *board) {
     
     size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
     textbox_neighbours *next_button1 = make_neighbours(-1, -1, -1, -1);
-    textbox_button *info_button1 = make_button("back", -1, next_button1);
+    textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
     elems[4] = make_element(BUTTON_ID, pos_button1, info_button1);
 
     return make_textbox(pos, elems, ELEM_CNT, 4);
@@ -143,8 +149,8 @@ int update_menus(menu_manager *manager, int user_input) {
 
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
-    if (ret == -1 || user_input == 'x') {
-        // go back one layer
+    if (ret == CLOSE_MENU || user_input == 'x') {
+        // cloes menu and go back one layer
         pop_menu_stack(manager);
     }
 
@@ -160,14 +166,11 @@ int manage_menus(menu_manager *manager, int user_input) {
     int ret = 0;
     // what each button trigger val does
     switch(update_result) {
-        case 1: // play game
+        case START_GAME:
             ret = 1;
             break;
-        case 2: // open settings
+        case OPEN_SETTINGS:
             open_menu(manager, make_settings_menu());
-            break;
-        case 3: // quit game
-            while (manager->top >= 0) pop_menu_stack(manager);
             break;
     }
     return ret;
