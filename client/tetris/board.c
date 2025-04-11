@@ -163,10 +163,13 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->counters->score = 0;
 
     board->limits = malloc(sizeof(board_counters));
-    board->limits->time_since_gravity = 1000*250;
+    // board->limits->time_since_gravity = 1000*250; // controlled by difficulty manager
     board->limits->hold_count = 1;
     board->limits->total_time_elapsed = 0;
     board->limits->score = 0;
+
+    board->difficulty_manager = make_difficulty_manager();
+    update_tetris_difficulty(board);
     
     // tetrominos
     board->bag_manager = construct_bag_manager(board, time(NULL));
@@ -294,6 +297,7 @@ int update_board(tetris_board_update *update) {
     board_counters *limits = board->limits;
 
     counters->total_time_elapsed += delta_time;
+    update_tetris_difficulty(board);
 
     // user input
     switch(user_input) {
@@ -528,5 +532,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free(board->counters);
     free(board->limits);
     free_bag_manager(board->bag_manager);
+    free_tetris_difficulty_manager(board->difficulty_manager);
     free(board);
 }

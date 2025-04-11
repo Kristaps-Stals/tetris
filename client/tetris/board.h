@@ -1,5 +1,6 @@
 #pragma once
 #include <ncurses.h>
+#include "difficulty_manager.h"
 
 // actively falling tetromino
 typedef struct tetromino {
@@ -42,6 +43,7 @@ typedef struct tetris_board {
     tetromino *active_tetromino; // actively falling tetromino
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits
     tetris_bag_manager *bag_manager;
+    tetris_difficulty_manager *difficulty_manager;
 } tetris_board;
 
 // settings, which are used to construct a tetris board
