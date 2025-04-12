@@ -4,6 +4,7 @@
 #include "tetromino_shapes.h"
 #include "SRS_rotation.h"
 #include <time.h>
+#include <string.h>
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -132,6 +133,52 @@ tetromino *take_from_bag(tetris_board *board, tetris_bag_manager *manager, bool 
     return ret;
 }
 
+board_counters *make_default_counters() {
+    board_counters *counters = malloc(sizeof(board_counters));
+    counters->time_since_gravity = 0;
+    counters->gravity_count = 0;
+    counters->hold_count = 0;
+    counters->total_time_elapsed = 0;
+    counters->score = 0;
+    counters->lock_delay = 0;
+    counters->lock_times = 0;
+    return counters;
+}
+
+board_counters *make_default_limits() {
+    board_counters *limits = malloc(sizeof(board_counters));
+    // limits->time_since_gravity = 1000*250; // controlled by difficulty manager
+    limits->gravity_count = 50; // max times gravity can be applied before forced hard drop
+    limits->hold_count = 1;
+    limits->total_time_elapsed = 0;
+    limits->score = 0;
+    limits->lock_delay = 500*1000; // 0.5s lock delay
+    limits->lock_times = 12; // max times can move before disabling reseting of lock delay
+    return limits;
+}
+
+tetris_info_manager *make_default_info_manager(tetris_board *board) {
+    tetris_info_manager *info_manager = malloc(sizeof(tetris_info_manager));
+    info_manager->info_h = 3;
+    info_manager->info_w = board->win_w;
+    info_manager->info_x = board->win_x;
+    info_manager->info_y = board->win_y - info_manager->info_h; 
+    info_manager->info_win = newwin(
+        info_manager->info_h,
+        info_manager->info_w,
+        info_manager->info_y,
+        info_manager->info_x
+    );
+    return info_manager;
+}
+
+void free_info_manager(tetris_info_manager *info_manager) {
+    wclear(info_manager->info_win);
+    wrefresh(info_manager->info_win);
+    delwin(info_manager->info_win);
+    free(info_manager);
+}
+
 tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     tetris_board *board = malloc(sizeof(tetris_board));
     int h = settings->play_height;
@@ -148,7 +195,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
         }
     }
 
-    // window
+    // main window
     board->win_h = h+2;
     board->win_w = 2*w+2;
     board->win_y = (LINES-board->win_h)/2;
@@ -156,24 +203,10 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->win = newwin(board->win_h, board->win_w, board->win_y, board->win_x);
 
     // counters and limits
-    board->counters = malloc(sizeof(board_counters));
-    board->counters->time_since_gravity = 0;
-    board->counters->gravity_count = 0;
-    board->counters->hold_count = 0;
-    board->counters->total_time_elapsed = 0;
-    board->counters->score = 0;
-    board->counters->lock_delay = 0;
-    board->counters->lock_times = 0;
+    board->counters = make_default_counters();
+    board->limits = make_default_limits();
 
-    board->limits = malloc(sizeof(board_counters));
-    // board->limits->time_since_gravity = 1000*250; // controlled by difficulty manager
-    board->limits->gravity_count = 40; // max times gravity can be applied before forced hard drop
-    board->limits->hold_count = 1;
-    board->limits->total_time_elapsed = 0;
-    board->limits->score = 0;
-    board->limits->lock_delay = 500*1000; // 0.5s lock delay
-    board->limits->lock_times = 12; // max times can move before disabling reseting of lock delay
-
+    // difficulty
     board->difficulty_manager = make_difficulty_manager();
     update_tetris_difficulty(board);
     
@@ -183,6 +216,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
 
     // others
     board->highest_tetromino = calculate_highest_piece(board);
+    board->info_manager = make_default_info_manager(board);
 
     return board;
 }
@@ -318,6 +352,27 @@ void handle_movement(tetris_board *board) {
     }
 }
 
+void update_info_manager(tetris_board *board) {
+    tetris_info_manager *info_manager = board->info_manager;
+    
+    werase(info_manager->info_win);
+    char buf[30];
+    
+    sprintf(buf, "Time: %llds", board->counters->total_time_elapsed/1000000);
+    int mid = (info_manager->info_w-strlen(buf))/2;
+    mvwprintw(info_manager->info_win, 0, mid, "%s", buf); 
+
+    sprintf(buf, "Level: %d", board->difficulty_manager->current_level);
+    mid = (info_manager->info_w-strlen(buf))/2;
+    mvwprintw(info_manager->info_win, 1, mid, "%s", buf);
+
+    sprintf(buf, "Score: %d", board->counters->score);
+    mid = (info_manager->info_w-strlen(buf))/2;
+    mvwprintw(info_manager->info_win, 2, mid, "%s", buf);
+
+    wrefresh(info_manager->info_win);
+}
+
 // returns 1 if game ended (0 otherwise)
 int update_board(tetris_board_update *update) {
     int user_input = update->user_input;
@@ -372,6 +427,7 @@ int update_board(tetris_board_update *update) {
     }
 
     draw_tetris_board(board);
+    update_info_manager(board);
     return 0;
 }
 
@@ -568,5 +624,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free(board->limits);
     free_bag_manager(board->bag_manager);
     free_tetris_difficulty_manager(board->difficulty_manager);
+    free_info_manager(board->info_manager);
     free(board);
 }

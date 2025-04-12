@@ -34,6 +34,11 @@ typedef struct tetris_bag_manager {
     int bag_seed; // current bad seed to ensure everyone has the same bags
 } tetris_bag_manager;
 
+typedef struct tetris_info_manager {
+    WINDOW *info_win;
+    int info_x, info_y, info_w, info_h;
+} tetris_info_manager;
+
 // contains all info about a board
 typedef struct tetris_board {
     WINDOW *win;
@@ -47,6 +52,7 @@ typedef struct tetris_board {
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits
     tetris_bag_manager *bag_manager;
     tetris_difficulty_manager *difficulty_manager;
+    tetris_info_manager *info_manager;
 } tetris_board;
 
 // settings, which are used to construct a tetris board

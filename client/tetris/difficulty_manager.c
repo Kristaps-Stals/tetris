@@ -8,12 +8,21 @@ enum {
 };
 
 tetris_difficulty **make_default_difficulty() {
-    tetris_difficulty **ret = malloc(10*sizeof(tetris_difficulty*));
-    for (int i = 0; i < 10; i++) {
+    tetris_difficulty **ret = malloc(13*sizeof(tetris_difficulty*));
+    for (int i = 0; i < 13; i++) {
         ret[i] = malloc(sizeof(tetris_difficulty));
         ret[i]->gravity_interval = (10-i)*100*1000; // 1s -> 0.1s in microseconds
         ret[i]->trigger_at = (60*i)*1000*1000; // every 60s difficulty increase
         ret[i]->trigger_type = TRIGGER_TIME;
+        if (i == 10) {
+            ret[i]->gravity_interval = 75*1000;
+        }
+        if (i == 11) {
+            ret[i]->gravity_interval = 50*1000;
+        }
+        if (i == 12) {
+            ret[i]->gravity_interval = 25*1000;
+        }
     }
     return ret;
 }
@@ -39,7 +48,7 @@ void update_tetris_difficulty(void *board_) {
 
 tetris_difficulty_manager *make_difficulty_manager() {
     tetris_difficulty_manager *manager = malloc(sizeof(tetris_difficulty_manager));
-    manager->level_count = 10;
+    manager->level_count = 13;
     manager->current_level = 0;
     manager->levels = make_default_difficulty();
     return manager;
