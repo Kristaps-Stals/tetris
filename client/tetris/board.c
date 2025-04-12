@@ -158,15 +158,21 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     // counters and limits
     board->counters = malloc(sizeof(board_counters));
     board->counters->time_since_gravity = 0;
+    board->counters->gravity_count = 0;
     board->counters->hold_count = 0;
     board->counters->total_time_elapsed = 0;
     board->counters->score = 0;
+    board->counters->lock_delay = 0;
+    board->counters->lock_times = 0;
 
     board->limits = malloc(sizeof(board_counters));
     // board->limits->time_since_gravity = 1000*250; // controlled by difficulty manager
+    board->limits->gravity_count = 40; // max times gravity can be applied before forced hard drop
     board->limits->hold_count = 1;
     board->limits->total_time_elapsed = 0;
     board->limits->score = 0;
+    board->limits->lock_delay = 500*1000; // 0.5s lock delay
+    board->limits->lock_times = 12; // max times can move before disabling reseting of lock delay
 
     board->difficulty_manager = make_difficulty_manager();
     update_tetris_difficulty(board);
@@ -223,6 +229,13 @@ bool move_tetromino(tetris_board *board, tetromino *t, int dir) {
     return true;
 }
 
+// things that need to be reset when a new tetromino is added
+void new_tetromino_reset(tetris_board *board) {
+    board->counters->lock_delay = 0;
+    board->counters->lock_times = 0;
+    board->counters->gravity_count = 0;
+}
+
 // hard drops the active tetromino in <board>
 void hard_drop(tetris_board *board) {
     while (can_move(board, board->active_tetromino, DIR_DOWN)) move_tetromino(board, board->active_tetromino, DIR_DOWN);
@@ -238,6 +251,7 @@ void hard_drop(tetris_board *board) {
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     board->counters->hold_count = 0;
     board->highest_tetromino = calculate_highest_piece(board);
+    new_tetromino_reset(board);
 }
 
 // returns true if tetromino <test> (assumed to be an actively falling tetromino)
@@ -258,8 +272,15 @@ bool valid_pos(tetromino *test, tetris_board *board) {
 
 // tries to move the active tetromino in <board> down
 void apply_gravity(tetris_board *board) {
+    board->counters->gravity_count++;
     if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) return;
-    hard_drop(board);
+    if (
+        board->counters->lock_delay >= board->limits->lock_delay ||
+        board->counters->lock_times >= board->limits->lock_times ||
+        board->counters->gravity_count >= board->limits->gravity_count
+    ) {
+        hard_drop(board);
+    }
 }
 
 // swaps active tetromino with hold tetromino (if exists)
@@ -285,7 +306,16 @@ bool hold_tetromino(tetris_board *board) {
     }
 
     board->bag_manager->held_tetromino = our_tetromino;
+    new_tetromino_reset(board);
     return true;
+}
+
+void handle_movement(tetris_board *board) {
+    // lock_delay
+    if (!can_move(board, board->active_tetromino, DIR_DOWN)){
+        board->counters->lock_delay = 0;
+        board->counters->lock_times++;
+    }
 }
 
 // returns 1 if game ended (0 otherwise)
@@ -302,19 +332,19 @@ int update_board(tetris_board_update *update) {
     // user input
     switch(user_input) {
         case 'x':
-            rotate_tetromino(board, DIR_RIGHT);
+            if (rotate_tetromino(board, DIR_RIGHT)) handle_movement(board);
             break;
         case 'z':
-            rotate_tetromino(board, DIR_LEFT);
+            if (rotate_tetromino(board, DIR_LEFT)) handle_movement(board);
             break;
         case 'c':
             hold_tetromino(board);
             break;
         case KEY_RIGHT:
-            move_tetromino(board, board->active_tetromino, DIR_RIGHT);
+            if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) handle_movement(board);
             break;
         case KEY_LEFT:
-            move_tetromino(board, board->active_tetromino, DIR_LEFT);
+            if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) handle_movement(board);
             break;
         case KEY_DOWN:
             if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) counters->time_since_gravity = 0;
@@ -322,6 +352,11 @@ int update_board(tetris_board_update *update) {
         case ' ':
             hard_drop(board);
             break;
+    }
+
+    // advance lock_delay if on ground
+    if (!can_move(board, board->active_tetromino, DIR_DOWN)) {
+        board->counters->lock_delay += delta_time;
     }
 
     // check if falling

@@ -12,7 +12,7 @@ tetris_difficulty **make_default_difficulty() {
     for (int i = 0; i < 10; i++) {
         ret[i] = malloc(sizeof(tetris_difficulty));
         ret[i]->gravity_interval = (10-i)*100*1000; // 1s -> 0.1s in microseconds
-        ret[i]->trigger_at = (1*i)*1000*1000; // every 60s difficulty increase
+        ret[i]->trigger_at = (60*i)*1000*1000; // every 60s difficulty increase
         ret[i]->trigger_type = TRIGGER_TIME;
     }
     return ret;

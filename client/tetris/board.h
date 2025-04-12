@@ -11,9 +11,12 @@ typedef struct tetromino {
 
 typedef struct board_counters {
     long long time_since_gravity;
+    int gravity_count; // how many gravities have been applied?
     int hold_count; // times hold used, resets on hard drop
     long long total_time_elapsed;
     int score;
+    int lock_delay; // how much time has a piece been on a floow
+    int lock_times; // how many times has a piece been moved on a floor
 } board_counters;
 
 // a single bag
