@@ -7,6 +7,9 @@
 #include "tetris/board.h"
 #include "menus/textbox.h"
 #include "menus/menu_maker.h"
+#include <getopt.h>
+#include <stdio.h>
+#include "net/net.h" 
 
 typedef long long ll;
 
@@ -25,7 +28,30 @@ ll get_delta_micro_s(struct timespec *now, struct timespec *bef) {
     return (ll)(time_ll(now)-time_ll(bef))/1e3;
 }
 
-void gameloop() {
+int parse_connection_args(int argc, char **argv, const char **host, int *port) { // todo: move to net?
+    *host = "127.0.0.1";
+    *port = 0;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
+        switch (opt) {
+            case 'p':
+                *port = atoi(optarg);
+                break;
+            case 'h':
+                *host = optarg;
+                break;
+            default:
+                fprintf(stderr, "Usage: %s -p <port> [-h <host>]\n", argv[0]);
+                return 0;
+        }
+    }
+
+    // if no port, just run singe player :)
+    return 1;
+}
+
+void gameloop(const char *host, int port) {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
@@ -57,6 +83,25 @@ void gameloop() {
                 ret = manage_menus(menu_manager_, user_input);
                 if (ret == 1) {
                     state = 1;
+
+                    // connect
+                    if (port != 0) {
+                        int server_socket = connect_to_server(host, port);
+                        if (server_socket < 0) {
+                            mvprintw(0, 0, "Failed to connect to server at %s:%d", host, port);
+                            refresh();
+                            sleep(2);
+                            break;
+                        }
+                        if (send_hello(server_socket, "TetrisClient 1.0", "PlayerOne") < 0) {
+                            mvprintw(0, 0, "Failed to send HELLO message.");
+                            refresh();
+                            sleep(2);
+                            close(server_socket);
+                            break;
+                        }
+                    }
+                
                     // setup tetris
                     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
                     board_settings->bag_seed = 0;
@@ -90,7 +135,14 @@ void gameloop() {
     if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
 }
 
-int main() {
+int main(int argc, char **argv) {
+    const char *host;
+    int port;
+
+    if (!parse_connection_args(argc, argv, &host, &port)) {
+        return 1; // Invalid args
+    }
+
     initscr();
 
     start_color();
@@ -99,7 +151,7 @@ int main() {
         refresh();
         getch();
         endwin();
-        return 0;
+        return 0;   
     }
 
     init_color(COLOR_CYAN, 0, 1000, 1000);
@@ -127,7 +179,7 @@ int main() {
     noecho(); // dont print user input directly
     curs_set(0); // dont show cursor
 
-    gameloop();
+    gameloop(host, port);
 
     endwin();
     return 0;
