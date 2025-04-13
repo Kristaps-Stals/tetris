@@ -6,6 +6,9 @@
 #include <../shared/protocol.h>
 
 int main(int argc, char **argv) {
+    int sockfd = -1;
+    int client_sockfd = -1;
+
     // parse port
     int port = 0;
     if (argc > 1) {
@@ -20,49 +23,44 @@ int main(int argc, char **argv) {
     }
 
     // create tcp socket
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("socket");
         return 1;
     }
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
 
-    // bind socket to port
+    struct sockaddr_in server_addr = {
+        .sin_family = AF_INET,
+        .sin_addr.s_addr = INADDR_ANY,
+        .sin_port = htons(port)
+    };
+
     if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("bind");
-        close(sockfd);
-        return 1;
+        goto cleanup;
     }
 
-    // listen for incoming connections
-    if(listen(sockfd, 5) < 0) {
+    if (listen(sockfd, 5) < 0) {
         perror("listen");
-        close(sockfd);
-        return 1;
+        goto cleanup;
     }
 
     printf("Server listening on port %d\n", port);
 
-    // accept incoming connections
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
-    int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len);
+    client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len);
     if (client_sockfd < 0) {
         perror("accept");
-        close(sockfd);
-        return 1;
+        goto cleanup;
     }
+
     printf("Accepted connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
     uint8_t header[4];
     if (read(client_sockfd, header, 4) != 4) {
         perror("read header");
-        close(client_sockfd);
-        close(sockfd);
-        return 1;
+        goto cleanup;
     }
 
     uint16_t length = (header[0] << 8) | header[1];
@@ -75,9 +73,7 @@ int main(int argc, char **argv) {
         msg_hello_t hello;
         if (read(client_sockfd, &hello, sizeof(hello)) != sizeof(hello)) {
             perror("read hello payload");
-            close(client_sockfd);
-            close(sockfd);
-            return 1;
+            goto cleanup;
         }
 
         printf("HELLO received!\n");
@@ -87,5 +83,10 @@ int main(int argc, char **argv) {
         // TODO: send WELCOME response here
     } else {
         printf("Unexpected message type: 0x%02X\n", msg_type);
-    } // TODO: MOVE EVERYTHING TO RECEIVER WRAPPER
+    }
+
+cleanup:
+    if (client_sockfd >= 0) close(client_sockfd);
+    if (sockfd >= 0) close(sockfd);
+    return 0;
 }
