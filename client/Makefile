@@ -1,14 +1,14 @@
 CC = gcc
-CFLAGS = -lncurses -Wall -Wextra -I. -g
+CFLAGS = -lncurses -Wall -Wextra -I. -I../shared -g 
 PROG_NAME = tetris_client
-ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o
+ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o
 
 all: $(PROG_NAME)
 
 $(PROG_NAME): $(ALL_OBJECTS)
-	$(CC) $(ALL_OBJECTS) -o $(PROG_NAME) ${CFLAGS}
+	$(CC) $(ALL_OBJECTS) -o $(PROG_NAME) $(CFLAGS)
 
-main.o: main.c tetris/board.h
+main.o: main.c tetris/board.h net/net.h
 	$(CC) -c main.c $(CFLAGS)
 
 board.o: tetris/board.c tetris/board.h
@@ -28,6 +28,9 @@ menu_maker.o: menus/menu_maker.c menus/menu_maker.h
 
 difficulty_manager.o: tetris/difficulty_manager.c tetris/difficulty_manager.h
 	$(CC) -c tetris/difficulty_manager.c $(CFLAGS)
+
+net.o: net/net.c net/net.h
+	$(CC) -c net/net.c $(CFLAGS)
 
 clean:
 	rm -f *.o $(PROG_NAME)
