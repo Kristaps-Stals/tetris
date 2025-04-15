@@ -109,7 +109,7 @@ tetromino *construct_tetromino(tetromino_construct_info *info) {
     int play_width = info->board->width;
     int piece_width = get_shape_spawn_width(ret->type);
     int center_2x = play_width; // center * 2
-    ret->x = (center_2x-piece_width+1)/2;
+    ret->x = (center_2x-piece_width)/2;
     ret->y = 0;
     ret->rotation = 0;
     return ret;
