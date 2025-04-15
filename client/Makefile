@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -lncurses -Wall -Wextra -I. -I../shared -g 
 PROG_NAME = tetris_client
-ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o
+ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o
 
 all: $(PROG_NAME)
 
@@ -31,6 +31,12 @@ difficulty_manager.o: tetris/difficulty_manager.c tetris/difficulty_manager.h
 
 net.o: net/net.c net/net.h
 	$(CC) -c net/net.c $(CFLAGS)
+
+score.o: tetris/score.c tetris/score.h
+	$(CC) -c tetris/score.c $(CFLAGS)
+
+kstring.o: ../shared/kstring.c ../shared/kstring.h
+	$(CC) -c ../shared/kstring.c $(CFLAGS)
 
 clean:
 	rm -f *.o $(PROG_NAME)

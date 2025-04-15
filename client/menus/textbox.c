@@ -1,23 +1,7 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include "textbox.h"
-
-int char_len(char* s) {
-    int x = 0;
-    while (*s != 0) {
-        x++;
-        s++;
-    }
-    return x;
-}
-
-char* copy_text(char* s) {
-    int siz = char_len(s);
-    char* ret = malloc(siz+1);
-    for (int i = 0; i < siz; i++) ret[i] = s[i];
-    ret[siz] = 0;
-    return ret;
-}
+#include "../shared/kstring.h"
 
 size_info *make_size_info(int h, int w, int y, int x) {
     size_info *info = malloc(sizeof(size_info));

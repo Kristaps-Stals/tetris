@@ -5,6 +5,7 @@
 #include "SRS_rotation.h"
 #include <time.h>
 #include <string.h>
+#include "score.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -221,24 +222,6 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     return board;
 }
 
-// checks for full lines in <board> and deletes them.
-// TODO: track/return what lines got cleared
-void check_line_clear(tetris_board *board) {
-    for (int i = 0; i < board->height; i++) {
-        int bad = 0;
-        for (int j = 0; j < board->width; j++) {
-            if (board->state[i][j] == -1) bad = 1;
-        }
-        if (bad) continue;
-        for (int ii = i-1; ii >= 0; ii--) {
-            for (int j = 0; j < board->width; j++) {
-                board->state[ii+1][j] = board->state[ii][j];
-            }
-        }
-        board->counters->score++;
-    }
-}
-
 // returns true if tetromino <t> can move in direction <dir> on <board>, else false.
 bool can_move(tetris_board *board, tetromino *t, int dir) {
     int **pos = get_tetromino_positions(t);
@@ -281,7 +264,7 @@ void hard_drop(tetris_board *board) {
     }
     free_pos(pos);
     free(board->active_tetromino);
-    check_line_clear(board);
+    update_clear_lines(board);
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     board->counters->hold_count = 0;
     board->highest_tetromino = calculate_highest_piece(board);
