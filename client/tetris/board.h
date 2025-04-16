@@ -17,6 +17,13 @@ typedef struct board_counters {
     int score;
     int lock_delay; // how much time has a piece been on a floow
     int lock_times; // how many times has a piece been moved on a floor
+
+    // difficulty clears in a row, resets upon performing 
+    // a non difficult clear that clears atleast 1 line
+    int b2b_bonus;
+
+    int combo; // clears in a row, starts at -1
+    int last_rotation; // what was the last rotation applied, used for t-spin checks, -1 is last move wasnt a rotation
 } board_counters;
 
 // a single bag
@@ -37,6 +44,8 @@ typedef struct tetris_bag_manager {
 typedef struct tetris_info_manager {
     WINDOW *info_win;
     int info_x, info_y, info_w, info_h;
+    WINDOW *clear_win;
+    int clear_x, clear_y, clear_w, clear_h;
 } tetris_info_manager;
 
 // contains all info about a board
@@ -45,7 +54,7 @@ typedef struct tetris_board {
     int win_x, win_y; // pos of the top left corner of window
     int width, height; // width and height of the play area NOT THE WINDOW!
     int win_w, win_h; // width and height of THE WINDOW!
-    int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos
+    int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos, [y][x]
     int highest_tetromino; // highest placed tetromino
 
     tetromino *active_tetromino; // actively falling tetromino
