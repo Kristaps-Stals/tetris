@@ -5,6 +5,7 @@
 #include "SRS_rotation.h"
 #include <time.h>
 #include <string.h>
+#include "score.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -108,7 +109,7 @@ tetromino *construct_tetromino(tetromino_construct_info *info) {
     int play_width = info->board->width;
     int piece_width = get_shape_spawn_width(ret->type);
     int center_2x = play_width; // center * 2
-    ret->x = (center_2x-piece_width+1)/2;
+    ret->x = (center_2x-piece_width)/2;
     ret->y = 0;
     ret->rotation = 0;
     return ret;
@@ -142,6 +143,9 @@ board_counters *make_default_counters() {
     counters->score = 0;
     counters->lock_delay = 0;
     counters->lock_times = 0;
+    counters->b2b_bonus = -1;
+    counters->combo = -1;
+    counters->last_rotation = -1;
     return counters;
 }
 
@@ -149,11 +153,14 @@ board_counters *make_default_limits() {
     board_counters *limits = malloc(sizeof(board_counters));
     // limits->time_since_gravity = 1000*250; // controlled by difficulty manager
     limits->gravity_count = 50; // max times gravity can be applied before forced hard drop
-    limits->hold_count = 1;
-    limits->total_time_elapsed = 0;
-    limits->score = 0;
-    limits->lock_delay = 500*1000; // 0.5s lock delay
-    limits->lock_times = 12; // max times can move before disabling reseting of lock delay
+    limits->hold_count = 1; // max times you can press hold without hard dropping
+    limits->total_time_elapsed = 0; // does nothing
+    limits->score = 0; // does nothing
+    limits->lock_delay = 500*1000; // 0.5s lock delay, time without doing anything on the ground before locking
+    limits->lock_times = 12; // max times can move before disabling resetting of lock delay
+    limits->b2b_bonus = 0; // does nothing
+    limits->combo = 0; // does nothing
+    limits->last_rotation = 0; // does nothing
     return limits;
 }
 
@@ -169,6 +176,18 @@ tetris_info_manager *make_default_info_manager(tetris_board *board) {
         info_manager->info_y,
         info_manager->info_x
     );
+
+    info_manager->clear_h = 3;
+    info_manager->clear_w = board->win_w+18;
+    info_manager->clear_x = board->win_x-9;
+    info_manager->clear_y = board->win_y + board->win_h + 1;
+    info_manager->clear_win = newwin(
+        info_manager->clear_h,
+        info_manager->clear_w,
+        info_manager->clear_y,
+        info_manager->clear_x
+    );
+
     return info_manager;
 }
 
@@ -176,6 +195,11 @@ void free_info_manager(tetris_info_manager *info_manager) {
     wclear(info_manager->info_win);
     wrefresh(info_manager->info_win);
     delwin(info_manager->info_win);
+    
+    wclear(info_manager->clear_win);
+    wrefresh(info_manager->clear_win);
+    delwin(info_manager->clear_win);
+    
     free(info_manager);
 }
 
@@ -221,24 +245,6 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     return board;
 }
 
-// checks for full lines in <board> and deletes them.
-// TODO: track/return what lines got cleared
-void check_line_clear(tetris_board *board) {
-    for (int i = 0; i < board->height; i++) {
-        int bad = 0;
-        for (int j = 0; j < board->width; j++) {
-            if (board->state[i][j] == -1) bad = 1;
-        }
-        if (bad) continue;
-        for (int ii = i-1; ii >= 0; ii--) {
-            for (int j = 0; j < board->width; j++) {
-                board->state[ii+1][j] = board->state[ii][j];
-            }
-        }
-        board->counters->score++;
-    }
-}
-
 // returns true if tetromino <t> can move in direction <dir> on <board>, else false.
 bool can_move(tetris_board *board, tetromino *t, int dir) {
     int **pos = get_tetromino_positions(t);
@@ -268,11 +274,50 @@ void new_tetromino_reset(tetris_board *board) {
     board->counters->lock_delay = 0;
     board->counters->lock_times = 0;
     board->counters->gravity_count = 0;
+    board->counters->last_rotation = -1;
+}
+
+// will free the score report
+void handle_score_report(tetris_board *board, score_report *score_rep) {
+    // add score
+    board->counters->score += score_rep->score;
+
+    // TODO: send garbage
+
+
+    // draw messages at bottom of board
+    WINDOW *win = board->info_manager->clear_win;
+    werase(win);
+    int w = board->info_manager->clear_w;
+    char buf[50];
+    wattron(win, A_BOLD);
+    int xpos = (w-strlen(score_rep->message))/2;
+    mvwprintw(win, 0, xpos, "%s", score_rep->message);
+
+    if (score_rep->score != 0) {
+        sprintf(buf, "+%lli score", score_rep->score);
+        xpos = (w-strlen(buf))/2;
+        mvwprintw(win, 1, xpos, "%s", buf);
+    }
+
+    if (score_rep->garbage != 0) {
+        sprintf(buf, "%lli garbage", score_rep->garbage);
+        xpos = (w-strlen(buf))/2;
+        mvwprintw(win, 2, xpos, "%s", buf);
+    }
+    wattroff(win, A_BOLD);
+    
+    wrefresh(win);
+
+    free_score_report(score_rep);
 }
 
 // hard drops the active tetromino in <board>
 void hard_drop(tetris_board *board) {
-    while (can_move(board, board->active_tetromino, DIR_DOWN)) move_tetromino(board, board->active_tetromino, DIR_DOWN);
+    while (can_move(board, board->active_tetromino, DIR_DOWN)) {
+        move_tetromino(board, board->active_tetromino, DIR_DOWN);
+        board->counters->score += 2; // score per line for hard drop
+    }
     int **pos = get_tetromino_positions(board->active_tetromino);
     for (int i = 0; i < 4; i++) {
         int y = pos[i][0];
@@ -280,8 +325,8 @@ void hard_drop(tetris_board *board) {
         board->state[y][x] = board->active_tetromino->type;
     }
     free_pos(pos);
+    handle_score_report(board, update_clear_lines(board)); // update this before we take new piece, so it properly checks t-spins
     free(board->active_tetromino);
-    check_line_clear(board);
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     board->counters->hold_count = 0;
     board->highest_tetromino = calculate_highest_piece(board);
@@ -307,7 +352,10 @@ bool valid_pos(tetromino *test, tetris_board *board) {
 // tries to move the active tetromino in <board> down
 void apply_gravity(tetris_board *board) {
     board->counters->gravity_count++;
-    if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) return;
+    if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
+        board->counters->last_rotation = -1;
+        return;
+    }
     if (
         board->counters->lock_delay >= board->limits->lock_delay ||
         board->counters->lock_times >= board->limits->lock_times ||
@@ -387,24 +435,40 @@ int update_board(tetris_board_update *update) {
     // user input
     switch(user_input) {
         case 'x':
-            if (rotate_tetromino(board, DIR_RIGHT)) handle_movement(board);
+            if (rotate_tetromino(board, DIR_RIGHT)) {
+                handle_movement(board);
+            }
             break;
         case 'z':
-            if (rotate_tetromino(board, DIR_LEFT)) handle_movement(board);
+            if (rotate_tetromino(board, DIR_LEFT)) {
+                handle_movement(board);
+            }
             break;
         case 'c':
             hold_tetromino(board);
             break;
         case KEY_RIGHT:
-            if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) handle_movement(board);
+            if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) {
+                handle_movement(board);
+                board->counters->last_rotation = -1;
+            }
             break;
         case KEY_LEFT:
-            if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) handle_movement(board);
+            if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) {
+                handle_movement(board);
+                board->counters->last_rotation = -1;
+            }
             break;
         case KEY_DOWN:
-            if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) counters->time_since_gravity = 0;
+            board->counters->last_rotation = -1;
+            if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
+                counters->time_since_gravity = 0;
+                board->counters->last_rotation = -1;
+                counters->score += 1; // score for soft drop
+            }
             break;
         case ' ':
+            board->counters->last_rotation = -1;
             hard_drop(board);
             break;
     }

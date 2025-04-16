@@ -108,8 +108,10 @@ bool rotate_tetromino(tetris_board *board, int dir) {
         test->y += y_dif;
         test->x += x_dif;
         if (valid_pos(test, board)) {
+            // rotation is good
             free(board->active_tetromino);
             board->active_tetromino = test;
+            board->counters->last_rotation = i;
             return true;
         }
         test->y -= y_dif;
