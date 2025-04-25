@@ -3,6 +3,7 @@
 #include "menu_maker.h"
 #include <stdlib.h>
 #include "string.h"
+#include "keyboard_manager.h"
 
 enum {
     CLOSE_MENU = -1,
@@ -149,7 +150,7 @@ int update_menus(menu_manager *manager, int user_input) {
 
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
-    if (ret == CLOSE_MENU || user_input == 'x') {
+    if (ret == CLOSE_MENU || user_input == get_keyboard_button(MENU_BACK)) {
         // cloes menu and go back one layer
         pop_menu_stack(manager);
     }

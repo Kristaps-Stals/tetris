@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 keyboard_binds *binds;
+const char* keyboard_config_file = "config/keyboard_binds.config";
 
 void set_default_binds() {
     binds->game_left = KEY_LEFT;
@@ -18,11 +19,12 @@ void set_default_binds() {
     binds->menu_right = KEY_RIGHT;
     binds->menu_down = KEY_DOWN;
     binds->menu_left = KEY_LEFT;
-    binds->menu_select = KEY_ENTER;
+    binds->menu_select = 10; // enter key
+    binds->menu_select2 = 'z';
     binds->menu_back = 'x';
 }
 
-void load_binds_from_file(char *file_path){
+void load_binds_from_file(const char *file_path){
     int fd = open(file_path, O_WRONLY | O_CREAT);
     if (!fd) return;
     write(fd, "test", 4);
@@ -33,7 +35,7 @@ void load_binds() {
     if (binds != NULL) free(binds);
     binds = malloc(sizeof(keyboard_binds));
     set_default_binds(binds);
-    load_binds_from_file("config/keyboard_binds.config");
+    load_binds_from_file(keyboard_config_file);
 }
 
 void save_binds() {
@@ -69,6 +71,8 @@ int get_keyboard_button(int action) {
             return binds->menu_select;
         case MENU_BACK:
             return binds->menu_back;
+        case MENU_SELECT2:
+            return binds->menu_select2;
     }
     return 0;
 }
@@ -115,5 +119,7 @@ void set_keyboard_button(int action, int new_button) {
         case MENU_BACK:
             binds->menu_back = new_button;
             break;
+        case MENU_SELECT2:
+            binds->menu_select2 = new_button;
     }   
 }

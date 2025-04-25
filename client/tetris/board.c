@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include "score.h"
+#include "../menus/keyboard_manager.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -433,44 +434,42 @@ int update_board(tetris_board_update *update) {
     update_tetris_difficulty(board);
 
     // user input
-    switch(user_input) {
-        case 'x':
-            if (rotate_tetromino(board, DIR_RIGHT)) {
-                handle_movement(board);
-            }
-            break;
-        case 'z':
-            if (rotate_tetromino(board, DIR_LEFT)) {
-                handle_movement(board);
-            }
-            break;
-        case 'c':
-            hold_tetromino(board);
-            break;
-        case KEY_RIGHT:
-            if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) {
-                handle_movement(board);
-                board->counters->last_rotation = -1;
-            }
-            break;
-        case KEY_LEFT:
-            if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) {
-                handle_movement(board);
-                board->counters->last_rotation = -1;
-            }
-            break;
-        case KEY_DOWN:
+    if (user_input == get_keyboard_button(GAME_ROTATE_RIGHT)){
+        if (rotate_tetromino(board, DIR_RIGHT)) {
+            handle_movement(board);
+        }
+    }
+    if (user_input == get_keyboard_button(GAME_ROTATE_LEFT)) {
+        if (rotate_tetromino(board, DIR_LEFT)) {
+            handle_movement(board);
+        }
+    }
+    if (user_input == get_keyboard_button(GAME_HOLD)) {
+        hold_tetromino(board);
+    }
+    if (user_input == get_keyboard_button(GAME_RIGHT)) {
+        if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) {
+            handle_movement(board);
             board->counters->last_rotation = -1;
-            if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
-                counters->time_since_gravity = 0;
-                board->counters->last_rotation = -1;
-                counters->score += 1; // score for soft drop
-            }
-            break;
-        case ' ':
+        }
+    }
+    if (user_input == get_keyboard_button(GAME_LEFT)) {
+        if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) {
+            handle_movement(board);
             board->counters->last_rotation = -1;
-            hard_drop(board);
-            break;
+        }
+    }
+    if (user_input == get_keyboard_button(GAME_SOFTDROP)) {
+        board->counters->last_rotation = -1;
+        if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
+            counters->time_since_gravity = 0;
+            board->counters->last_rotation = -1;
+            counters->score += 1; // score for soft drop
+        }
+    }
+    if (user_input == get_keyboard_button(GAME_HARDDROP)) {
+        board->counters->last_rotation = -1;
+        hard_drop(board);
     }
 
     // advance lock_delay if on ground

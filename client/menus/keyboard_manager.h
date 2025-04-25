@@ -13,7 +13,8 @@ enum {
     MENU_DOWN = 9,
     MENU_LEFT = 10,
     MENU_SELECT = 11,
-    MENU_BACK = 12
+    MENU_BACK = 12,
+    MENU_SELECT2 = 13,
 };
 
 typedef struct {
@@ -30,6 +31,7 @@ typedef struct {
     int menu_left;
     int menu_select;
     int menu_back;
+    int menu_select2;
 } keyboard_binds;
 
 void init_binds();

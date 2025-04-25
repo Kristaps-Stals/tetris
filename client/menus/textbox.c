@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "textbox.h"
 #include "../shared/kstring.h"
+#include "keyboard_manager.h"
 
 size_info *make_size_info(int h, int w, int y, int x) {
     size_info *info = malloc(sizeof(size_info));
@@ -150,29 +151,34 @@ int update_handle_button(textbox *tbox, int user_input) {
     textbox_button *info = selected_elem->info;
     textbox_neighbours *next = info->neighbour;
 
-    switch(user_input) {
-        case KEY_UP:
-            if (next->up < 0) break;
+
+    if (user_input == get_keyboard_button(MENU_UP)) {
+        if (next->up >= 0) {
             tbox->element_selected = next->up;
-            break;
-        case KEY_RIGHT:
-            if (next->right < 0) break;
-            tbox->element_selected = next->right;
-            break;
-        case KEY_DOWN:
-            if (next->down < 0) break;
-            tbox->element_selected = next->down;
-            break;
-        case KEY_LEFT:
-            if (next->left < 0) break;
-            tbox->element_selected = next->left;
-            break;
-        case 10: // enter key
-        case 'z':
-            // button is pressed
-            return info->trigger_val;
-            break;
+        }
     }
+    if (user_input == get_keyboard_button(MENU_RIGHT)) {
+        if (next->right >= 0) {
+            tbox->element_selected = next->right;
+        }
+    }
+    if (user_input == get_keyboard_button(MENU_DOWN)) {
+        if (next->down >= 0) {
+            tbox->element_selected = next->down;
+        }
+    }
+    if (user_input == get_keyboard_button(MENU_LEFT)) {
+        if (next->left >= 0) {
+            tbox->element_selected = next->left;
+        }
+    }
+    if (
+        user_input == get_keyboard_button(MENU_SELECT) || 
+        user_input == get_keyboard_button(MENU_SELECT2)
+    ) {
+        return info->trigger_val;
+    }
+
     return 0;
 }
 
