@@ -125,7 +125,7 @@ textbox *make_endscreen(tetris_board *board) {
     return make_textbox(pos, elems, ELEM_CNT, 4);
 }
 
-// tries to open <new_menu>, returns true on success, false of failure
+// tries to open <new_menu>, returns true on success, false on failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
     if (manager->top == manager->max_stack) return false;
     manager->top++;

@@ -152,7 +152,7 @@ board_counters *make_default_counters() {
 board_counters *make_default_limits() {
     board_counters *limits = malloc(sizeof(board_counters));
     // limits->time_since_gravity = 1000*250; // controlled by difficulty manager
-    limits->gravity_count = 50; // max times gravity can be applied before forced hard drop
+    limits->gravity_count = 60; // max times gravity can be applied before forced hard drop
     limits->hold_count = 1; // max times you can press hold without hard dropping
     limits->total_time_elapsed = 0; // does nothing
     limits->score = 0; // does nothing
