@@ -9,6 +9,7 @@ enum {
     CLOSE_MENU = -1,
     START_GAME = 1,
     OPEN_SETTINGS = 2,
+    OPEN_KEYBINDINGS = 3,
 };
 
 menu_manager *make_menu_manager() {
@@ -67,19 +68,28 @@ textbox *make_settings_menu() {
     int y = (LINES-h)/2;
 
     size_info *pos = make_size_info(h, w, y, x);
-    int ELEM_CNT = 2;
+    int ELEM_CNT = 4;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     size_info *pos_text1 = make_size_info(1, 9, 0, 2);
     textbox_text *info_text1 = make_text("Settings");
     elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
 
-    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
-    textbox_neighbours *next_button1 = make_neighbours(-1, -1, -1, -1);
+    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4-1);
+    textbox_neighbours *next_button1 = make_neighbours(3, -1, 3, -1);
     textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
     elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
-    return make_textbox(pos, elems, ELEM_CNT, 1);
+    size_info *pos_text2 = make_size_info(1, 11, 1, 3);
+    textbox_text *info_text2 = make_text("Keybindings");
+    elems[2] = make_element(TEXT_ID, pos_text2, info_text2);;
+
+    size_info *pos_button2 = make_size_info(1, 4, 1, w-1-4-2);
+    textbox_neighbours *next_button2 = make_neighbours(1, -1, 1, -1);
+    textbox_button *info_button2 = make_button("edit", OPEN_KEYBINDINGS, next_button2);
+    elems[3] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    return make_textbox(pos, elems, ELEM_CNT, 3);
 }
 
 textbox *make_endscreen(tetris_board *board) {
@@ -124,6 +134,51 @@ textbox *make_endscreen(tetris_board *board) {
     elems[4] = make_element(BUTTON_ID, pos_button1, info_button1);
 
     return make_textbox(pos, elems, ELEM_CNT, 4);
+}
+
+textbox *make_keybind_menu() {
+    int w = 40;
+    int h = 20;
+    int x = (COLS-w)/2;
+    int y = (LINES-h)/2;
+
+    size_info *pos = make_size_info(h, w, y, x);
+
+    int bind_elems = TOTAL_BINDS*2;
+    int ELEM_CNT = bind_elems+2;
+    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
+
+    for (int i = 0; i < TOTAL_BINDS; i++) {
+        keyboard_bind bind = get_bind(i);
+
+        size_info *pos_bind = make_size_info(1, 20, 1+i, 3);
+        textbox_text *info_text_bind = make_text(bind.setting_name);
+        elems[i*2] = make_element(TEXT_ID, pos_bind, info_text_bind);
+
+        size_info *pos_button_bind = make_size_info(1, 8, 1+i, w-1-9);
+        int up = 2*i+1 -2;
+        int down = 2*i+1 +2;
+        if (i == 0) up = bind_elems+1;
+        if (i == TOTAL_BINDS-1) down = bind_elems+1;
+        textbox_neighbours *next_button_bind = make_neighbours(up, -1, down, -1);
+        char buf[10];
+        char c = ' ';
+        if (bind.button >= 21 && bind.button <= 255) c = bind.button;
+        sprintf(buf, "%c (%d)", c, bind.button);
+        textbox_button *info_button_bind = make_button(buf, 0, next_button_bind); // TODO: link trigger
+        elems[2*i+1] = make_element(BUTTON_ID, pos_button_bind, info_button_bind);
+    }
+
+    size_info *pos_text1 = make_size_info(1, 11, 0, 2);
+    textbox_text *info_text1 = make_text("Keybindings");
+    elems[bind_elems+0] = make_element(TEXT_ID, pos_text1, info_text1);
+
+    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4-1);
+    textbox_neighbours *next_button1 = make_neighbours(bind_elems-1, -1, 1, -1);
+    textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
+    elems[bind_elems+1] = make_element(BUTTON_ID, pos_button1, info_button1);
+
+    return make_textbox(pos, elems, ELEM_CNT, 1);
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
@@ -173,6 +228,8 @@ int manage_menus(menu_manager *manager, int user_input) {
         case OPEN_SETTINGS:
             open_menu(manager, make_settings_menu());
             break;
+        case OPEN_KEYBINDINGS:
+            open_menu(manager, make_keybind_menu());
     }
     return ret;
 }

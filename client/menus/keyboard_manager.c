@@ -3,26 +3,27 @@
 #include "keyboard_manager.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <assert.h>
 #include "../../shared/kstring.h"
 
 keyboard_bind *binds;
 const char* keyboard_config_file = "config/keyboard.config";
 
 void set_default_binds() {
-    binds[GAME_LEFT] = (keyboard_bind){KEY_LEFT, "tetris left", "game_left"};
-    binds[GAME_RIGHT] = (keyboard_bind){KEY_RIGHT, "tetris right", "game_right"};
-    binds[GAME_SOFTDROP] = (keyboard_bind){KEY_DOWN, "softdrop", "game_softdrop"};
-    binds[GAME_HARDDROP] = (keyboard_bind){' ', "harddrop", "game_harddrop"};
-    binds[GAME_ROTATE_LEFT] = (keyboard_bind){'z', "rotate left", "game_rotate_left"};
-    binds[GAME_ROTATE_RIGHT] = (keyboard_bind){'x', "rotate right", "game_rotate_right"};
-    binds[GAME_HOLD] = (keyboard_bind){'c', "hold piece", "game_hold"};
-    binds[MENU_UP] = (keyboard_bind){KEY_UP, "menu up", "menu_up"};
-    binds[MENU_RIGHT] = (keyboard_bind){KEY_RIGHT, "menu right", "menu_right"};
-    binds[MENU_DOWN] = (keyboard_bind){KEY_DOWN, "menu down", "menu_down"};
-    binds[MENU_LEFT] = (keyboard_bind){KEY_LEFT, "menu left", "menu_left"};
-    binds[MENU_SELECT] = (keyboard_bind){10, "menu select", "menu_select"};
-    binds[MENU_SELECT2] = (keyboard_bind){'z', "menu select2", "menu_select2"};
-    binds[MENU_BACK] = (keyboard_bind){'x', "menu back", "menu_back"};
+    binds[GAME_LEFT] = (keyboard_bind){KEY_LEFT, "Tetris left", "game_left"};
+    binds[GAME_RIGHT] = (keyboard_bind){KEY_RIGHT, "Tetris right", "game_right"};
+    binds[GAME_SOFTDROP] = (keyboard_bind){KEY_DOWN, "Soft drop", "game_softdrop"};
+    binds[GAME_HARDDROP] = (keyboard_bind){' ', "Hard drop", "game_harddrop"};
+    binds[GAME_ROTATE_LEFT] = (keyboard_bind){'z', "Rotate left", "game_rotate_left"};
+    binds[GAME_ROTATE_RIGHT] = (keyboard_bind){'x', "Rotate right", "game_rotate_right"};
+    binds[GAME_HOLD] = (keyboard_bind){'c', "Hold piece", "game_hold"};
+    binds[MENU_UP] = (keyboard_bind){KEY_UP, "Menu up", "menu_up"};
+    binds[MENU_RIGHT] = (keyboard_bind){KEY_RIGHT, "Menu right", "menu_right"};
+    binds[MENU_DOWN] = (keyboard_bind){KEY_DOWN, "Menu down", "menu_down"};
+    binds[MENU_LEFT] = (keyboard_bind){KEY_LEFT, "Menu left", "menu_left"};
+    binds[MENU_SELECT] = (keyboard_bind){10, "Menu select", "menu_select"};
+    binds[MENU_SELECT2] = (keyboard_bind){'z', "Menu select 2", "menu_select2"};
+    binds[MENU_BACK] = (keyboard_bind){'x', "Menu back", "menu_back"};
 }
 
 char* parse_bind_line(char* s, int *num) {
@@ -93,11 +94,16 @@ void init_binds() {
 }
 
 int get_keyboard_button(int action) {
-    if (action < 0 || action >= TOTAL_BINDS) return 0;
+    assert(action >= 0 && action < TOTAL_BINDS);
     return binds[action].button;
 }
 
 void set_keyboard_button(int action, int new_button) {
-    if (action < 0 || action >= TOTAL_BINDS) return;
+    assert(action >= 0 && action < TOTAL_BINDS);
     binds[action].button = new_button;
+}
+
+keyboard_bind get_bind(int action) {
+    assert(action >= 0 && action < TOTAL_BINDS);
+    return binds[action];
 }
