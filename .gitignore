@@ -1,5 +1,5 @@
 *.o
 .vscode
-.config
+*.config
 tetris_client
 tetris_server

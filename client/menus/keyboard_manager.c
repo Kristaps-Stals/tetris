@@ -3,123 +3,101 @@
 #include "keyboard_manager.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include "../../shared/kstring.h"
 
-keyboard_binds *binds;
-const char* keyboard_config_file = "config/keyboard_binds.config";
+keyboard_bind *binds;
+const char* keyboard_config_file = "config/keyboard.config";
 
 void set_default_binds() {
-    binds->game_left = KEY_LEFT;
-    binds->game_right = KEY_RIGHT;
-    binds->game_softdrop = KEY_DOWN;
-    binds->game_harddrop = ' ';
-    binds->game_rotate_left = 'z';
-    binds->game_rotate_right = 'x';
-    binds->game_hold = 'c';
-    binds->menu_up = KEY_UP;
-    binds->menu_right = KEY_RIGHT;
-    binds->menu_down = KEY_DOWN;
-    binds->menu_left = KEY_LEFT;
-    binds->menu_select = 10; // enter key
-    binds->menu_select2 = 'z';
-    binds->menu_back = 'x';
+    binds[GAME_LEFT] = (keyboard_bind){KEY_LEFT, "tetris left", "game_left"};
+    binds[GAME_RIGHT] = (keyboard_bind){KEY_RIGHT, "tetris right", "game_right"};
+    binds[GAME_SOFTDROP] = (keyboard_bind){KEY_DOWN, "softdrop", "game_softdrop"};
+    binds[GAME_HARDDROP] = (keyboard_bind){' ', "harddrop", "game_harddrop"};
+    binds[GAME_ROTATE_LEFT] = (keyboard_bind){'z', "rotate left", "game_rotate_left"};
+    binds[GAME_ROTATE_RIGHT] = (keyboard_bind){'x', "rotate right", "game_rotate_right"};
+    binds[GAME_HOLD] = (keyboard_bind){'c', "hold piece", "game_hold"};
+    binds[MENU_UP] = (keyboard_bind){KEY_UP, "menu up", "menu_up"};
+    binds[MENU_RIGHT] = (keyboard_bind){KEY_RIGHT, "menu right", "menu_right"};
+    binds[MENU_DOWN] = (keyboard_bind){KEY_DOWN, "menu down", "menu_down"};
+    binds[MENU_LEFT] = (keyboard_bind){KEY_LEFT, "menu left", "menu_left"};
+    binds[MENU_SELECT] = (keyboard_bind){10, "menu select", "menu_select"};
+    binds[MENU_SELECT2] = (keyboard_bind){'z', "menu select2", "menu_select2"};
+    binds[MENU_BACK] = (keyboard_bind){'x', "menu back", "menu_back"};
 }
 
-void load_binds_from_file(const char *file_path){
-    int fd = open(file_path, O_WRONLY | O_CREAT);
-    if (!fd) return;
-    write(fd, "test", 4);
-    close(fd);
+char* parse_bind_line(char* s, int *num) {
+    char* tmp = s;
+    int len = 1; // zero byte at the end
+    while (
+        (*tmp <= 'Z' && *tmp >= 'A') || 
+        (*tmp <= 'z' && *tmp >= 'a') || 
+        (*tmp <= '9' && *tmp >= '0') ||
+        *tmp == '_'
+    ) {
+        tmp++;
+        len++;
+    }
+    char* ret = malloc(len*sizeof(char));
+    for (int i = 0; i < len-1; i++) {
+        ret[i] = s[i];
+    }
+    ret[len-1] = 0;
+    (*num) = 0;
+    if (*tmp == 0) return ret;
+    tmp++;
+    *num = char_to_num(tmp);
+    return ret;
 }
 
+void process_keyboard_config_line(char* s) {
+    int num;
+    char* first_word = parse_bind_line(s, &num);
+    for (int i = 0; i < TOTAL_BINDS; i++) {
+        if (char_cmp(first_word, binds[i].config_name) == 0) {
+            binds[i].button = num;
+        }
+    }
+    free(first_word);
+}
+
+void load_binds_from_file(){
+    FILE* f = fopen(keyboard_config_file, "r");
+    if (!f) return;
+    char buf[105];
+    while (fgets(buf, 100, f)) {
+        process_keyboard_config_line(buf);
+    }
+    fclose(f);
+}
+
+// loads binds from file
 void load_binds() {
-    if (binds != NULL) free(binds);
-    binds = malloc(sizeof(keyboard_binds));
     set_default_binds(binds);
-    load_binds_from_file(keyboard_config_file);
+    load_binds_from_file();
 }
 
+// saves current binds into file
 void save_binds() {
+    FILE *f = fopen(keyboard_config_file, "w");
+    if (!f) return;
+    for (int i = 0; i < TOTAL_BINDS; i++) {
+        fprintf(f, "%s:%d\n", binds[i].config_name, binds[i].button);
+    }
+    fclose(f);
+}
 
+void init_binds() {
+    binds = malloc(TOTAL_BINDS*sizeof(keyboard_bind));
+    load_binds();
+    save_binds();
 }
 
 int get_keyboard_button(int action) {
-    switch (action) {
-        case GAME_LEFT:
-            return binds->game_left;
-        case GAME_RIGHT:
-            return binds->game_right;
-        case GAME_SOFTDROP:
-            return binds->game_softdrop;
-        case GAME_HARDDROP:
-            return binds->game_harddrop;
-        case GAME_ROTATE_LEFT:
-            return binds->game_rotate_left;
-        case GAME_ROTATE_RIGHT:
-            return binds->game_rotate_right;
-        case GAME_HOLD:
-            return binds->game_hold;
-        
-        case MENU_UP:
-            return binds->menu_up;
-        case MENU_RIGHT:
-            return binds->menu_right;
-        case MENU_DOWN:
-            return binds->menu_down;
-        case MENU_LEFT:
-            return binds->menu_left;
-        case MENU_SELECT:
-            return binds->menu_select;
-        case MENU_BACK:
-            return binds->menu_back;
-        case MENU_SELECT2:
-            return binds->menu_select2;
-    }
-    return 0;
+    if (action < 0 || action >= TOTAL_BINDS) return 0;
+    return binds[action].button;
 }
 
 void set_keyboard_button(int action, int new_button) {
-    switch (action) {
-        case GAME_LEFT:
-            binds->game_left = new_button;
-            break;
-        case GAME_RIGHT:
-            binds->game_right = new_button;
-            break;
-        case GAME_SOFTDROP:
-            binds->game_softdrop = new_button;
-            break;
-        case GAME_HARDDROP:
-            binds->game_harddrop = new_button;
-            break;
-        case GAME_ROTATE_LEFT:
-            binds->game_rotate_left = new_button;
-            break;
-        case GAME_ROTATE_RIGHT:
-            binds->game_rotate_right = new_button;
-            break;
-        case GAME_HOLD:
-            binds->game_hold = new_button;
-            break;
-        
-        case MENU_UP:
-            binds->menu_up = new_button;
-            break;
-        case MENU_RIGHT:
-            binds->menu_right = new_button;
-            break;
-        case MENU_DOWN:
-            binds->menu_down = new_button;
-            break;
-        case MENU_LEFT:
-            binds->menu_left = new_button;
-            break;
-        case MENU_SELECT:
-            binds->menu_select = new_button;
-            break;
-        case MENU_BACK:
-            binds->menu_back = new_button;
-            break;
-        case MENU_SELECT2:
-            binds->menu_select2 = new_button;
-    }   
+    if (action < 0 || action >= TOTAL_BINDS) return;
+    binds[action].button = new_button;
 }

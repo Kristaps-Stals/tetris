@@ -1,6 +1,7 @@
 #pragma once
 
 enum {
+    TOTAL_BINDS = 14, // update pls
     GAME_RIGHT = 0,
     GAME_LEFT = 1,
     GAME_SOFTDROP = 2,
@@ -18,21 +19,10 @@ enum {
 };
 
 typedef struct {
-    int game_left;
-    int game_right;
-    int game_softdrop;
-    int game_harddrop;
-    int game_rotate_left;
-    int game_rotate_right;
-    int game_hold;
-    int menu_up;
-    int menu_right;
-    int menu_down;
-    int menu_left;
-    int menu_select;
-    int menu_back;
-    int menu_select2;
-} keyboard_binds;
+    int button; // which button triggers it
+    char *setting_name; // shown in settings menu
+    char *config_name; // name in config file
+} keyboard_bind;
 
 void init_binds();
 void load_binds();
