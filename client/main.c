@@ -135,6 +135,7 @@ void gameloop(const char *host, int port) {
     }
 
     if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
+    if (board != NULL) deconstruct_tetris_board(board);
 }
 
 int main(int argc, char **argv) {

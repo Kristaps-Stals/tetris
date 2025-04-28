@@ -3,7 +3,8 @@
 
 enum {
     TEXT_ID = 0,
-    BUTTON_ID = 1
+    BUTTON_ID = 1,
+    KEYBIND_SELECT_ID = 2
 };
 
 typedef struct size_info {
@@ -28,6 +29,7 @@ typedef struct textbox_button {
 typedef struct textbox_keybind_select {
     char *text_normal, *text_editing;
     int text_normal_len, text_editing_len, keybind_id;
+    bool is_editing;
     textbox_neighbours *neighbour; // which element to go to if active element
 } textbox_keybind_select;
 
@@ -38,6 +40,7 @@ typedef struct textbox_element {
 } textbox_element;
 
 typedef struct textbox {
+    int id;
     WINDOW *win;
     size_info *pos; // window position
     textbox_element **elements;
@@ -53,11 +56,11 @@ textbox_text *make_text(char *text);
 
 textbox_button *make_button(char *text, int trigger_val, textbox_neighbours *neighbours);
 
-textbox_keybind_select *make_keybind_select(char *text_normal, char *text_editing, int keybind_id, textbox_neighbours *neighbours);
+textbox_keybind_select *make_keybind_select(char *text_editing, int keybind_id, textbox_neighbours *neighbours);
 
 textbox_element *make_element(int type, size_info *pos, void *element_info);
 
-textbox *make_textbox(size_info *pos, textbox_element **element_list, int element_count, int default_element);
+textbox *make_textbox(size_info *pos, textbox_element **element_list, int element_count, int default_element, int id);
 void free_textbox(textbox *box);
 void draw_textbox(textbox *tbox);
 int update_textbox(textbox *tbox, int user_input);

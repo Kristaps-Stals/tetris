@@ -24,6 +24,7 @@ typedef struct {
     char *config_name; // name in config file
 } keyboard_bind;
 
+void set_default_binds();
 void init_binds();
 void load_binds();
 void save_binds();

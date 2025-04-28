@@ -10,6 +10,16 @@ enum {
     START_GAME = 1,
     OPEN_SETTINGS = 2,
     OPEN_KEYBINDINGS = 3,
+    SAVE_KEYBINDINGS = 4,
+    DEFAULT_KEYBINDINGS = 5,
+    CLOSE_KEYBINDINGS = 6
+};
+
+enum {
+    MAIN_MENU_ID = 0,
+    SETTINGS_MENU_ID = 1,
+    ENDSCREEN_MENU_ID = 2,
+    KEYBINDINGS_MENU_ID = 3
 };
 
 menu_manager *make_menu_manager() {
@@ -58,7 +68,7 @@ textbox *make_main_menu() {
     textbox_button *info_button3 = make_button("       quit       ", CLOSE_MENU, next_button3);
     elems[3] = make_element(BUTTON_ID, pos_button3, info_button3);
 
-    return make_textbox(pos, elems, ELEM_CNT, 1);
+    return make_textbox(pos, elems, ELEM_CNT, 1, MAIN_MENU_ID);
 }
 
 textbox *make_settings_menu() {
@@ -89,7 +99,7 @@ textbox *make_settings_menu() {
     textbox_button *info_button2 = make_button("edit", OPEN_KEYBINDINGS, next_button2);
     elems[3] = make_element(BUTTON_ID, pos_button2, info_button2);
 
-    return make_textbox(pos, elems, ELEM_CNT, 3);
+    return make_textbox(pos, elems, ELEM_CNT, 3, SETTINGS_MENU_ID);
 }
 
 textbox *make_endscreen(tetris_board *board) {
@@ -133,7 +143,7 @@ textbox *make_endscreen(tetris_board *board) {
     textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
     elems[4] = make_element(BUTTON_ID, pos_button1, info_button1);
 
-    return make_textbox(pos, elems, ELEM_CNT, 4);
+    return make_textbox(pos, elems, ELEM_CNT, 4, ENDSCREEN_MENU_ID);
 }
 
 textbox *make_keybind_menu() {
@@ -145,7 +155,7 @@ textbox *make_keybind_menu() {
     size_info *pos = make_size_info(h, w, y, x);
 
     int bind_elems = TOTAL_BINDS*2;
-    int ELEM_CNT = bind_elems+2;
+    int ELEM_CNT = bind_elems+4;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     for (int i = 0; i < TOTAL_BINDS; i++) {
@@ -161,24 +171,30 @@ textbox *make_keybind_menu() {
         if (i == 0) up = bind_elems+1;
         if (i == TOTAL_BINDS-1) down = bind_elems+1;
         textbox_neighbours *next_button_bind = make_neighbours(up, -1, down, -1);
-        char buf[10];
-        char c = ' ';
-        if (bind.button >= 21 && bind.button <= 255) c = bind.button;
-        sprintf(buf, "%c (%d)", c, bind.button);
-        textbox_button *info_button_bind = make_button(buf, 0, next_button_bind); // TODO: link trigger
-        elems[2*i+1] = make_element(BUTTON_ID, pos_button_bind, info_button_bind);
+        textbox_keybind_select *info_keybind = make_keybind_select("...", i, next_button_bind); // TODO: link trigger
+        elems[2*i+1] = make_element(KEYBIND_SELECT_ID, pos_button_bind, info_keybind);
     }
 
     size_info *pos_text1 = make_size_info(1, 11, 0, 2);
     textbox_text *info_text1 = make_text("Keybindings");
     elems[bind_elems+0] = make_element(TEXT_ID, pos_text1, info_text1);
 
-    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4-1);
-    textbox_neighbours *next_button1 = make_neighbours(bind_elems-1, -1, 1, -1);
-    textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
+    size_info *pos_button1 = make_size_info(1, 6, h-2, w-1-6-1);
+    textbox_neighbours *next_button1 = make_neighbours(bind_elems-1, bind_elems+3, 1, bind_elems+2);
+    textbox_button *info_button1 = make_button("cancel", CLOSE_KEYBINDINGS, next_button1);
     elems[bind_elems+1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
-    return make_textbox(pos, elems, ELEM_CNT, 1);
+    size_info *pos_button2 = make_size_info(1, 4, h-2, w-1-6-1-6);
+    textbox_neighbours *next_button2 = make_neighbours(bind_elems-1, bind_elems+1, 1, bind_elems+3);
+    textbox_button *info_button2 = make_button("save", SAVE_KEYBINDINGS, next_button2);
+    elems[bind_elems+2] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    size_info *pos_button3 = make_size_info(1, 9, h-2, w-1-4-1-6-12);
+    textbox_neighbours *next_button3 = make_neighbours(bind_elems-1, bind_elems+2, 1, bind_elems+1);
+    textbox_button *info_button3 = make_button("defaults", DEFAULT_KEYBINDINGS, next_button3);
+    elems[bind_elems+3] = make_element(BUTTON_ID, pos_button3, info_button3);
+
+    return make_textbox(pos, elems, ELEM_CNT, 1, KEYBINDINGS_MENU_ID);
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
@@ -192,6 +208,7 @@ bool open_menu(menu_manager *manager, textbox *new_menu) {
 // pops the top textbox in menu manager
 void pop_menu_stack(menu_manager *manager) {
     textbox **stack = manager->stack;
+
     werase(stack[manager->top]->win);
     wrefresh(stack[manager->top]->win);
     free_textbox(stack[manager->top]);
@@ -206,12 +223,19 @@ int update_menus(menu_manager *manager, int user_input) {
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
     if (ret == CLOSE_MENU || user_input == get_keyboard_button(MENU_BACK)) {
-        // cloes menu and go back one layer
-        pop_menu_stack(manager);
+        if (stack[manager->top]->id != KEYBINDINGS_MENU_ID) { // disable default back in keybindings
+            // close menu and go back one layer
+            pop_menu_stack(manager);
+        }
     }
 
     if (ret > 0) return ret;
     return 0;
+}
+
+void close_keybindings(menu_manager *manager) {
+    load_binds();
+    pop_menu_stack(manager);
 }
 
 // returns signals for main gameloop
@@ -230,6 +254,17 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case OPEN_KEYBINDINGS:
             open_menu(manager, make_keybind_menu());
+            break;
+        case SAVE_KEYBINDINGS:
+            save_binds();
+            close_keybindings(manager);
+            break;
+        case DEFAULT_KEYBINDINGS:
+            set_default_binds();
+            break;
+        case CLOSE_KEYBINDINGS:
+            close_keybindings(manager);
+            break;
     }
     return ret;
 }
