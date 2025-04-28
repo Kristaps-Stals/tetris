@@ -52,3 +52,21 @@ int send_hello(int sockfd, const char *client_id, const char *player_name) {
     strncpy(msg.player_name, player_name, sizeof(msg.player_name));
     return send_message(sockfd, MSG_HELLO, PLAYER_ID_BROADCAST, &msg, sizeof(msg));
 }
+
+int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_payload, uint16_t *out_payload_size) {
+    uint8_t hdr[4];
+    ssize_t r = read(sockfd, hdr, 4);
+    if (r != 4) return -1;
+    uint16_t length = (hdr[0] << 8) | hdr[1];
+    *out_type   = hdr[2];
+    *out_source = hdr[3];
+
+    uint16_t payload_len = length - 2;
+    if (payload_len > 0 && out_payload && out_payload_size) {
+        r = read(sockfd, out_payload, payload_len);
+        if (r != payload_len) return -1;
+    }
+    *out_payload_size = payload_len;
+    return 0;
+}
+
