@@ -75,7 +75,7 @@ void load_binds_from_file(){
 
 // loads binds from file
 void load_binds() {
-    set_default_binds(binds);
+    set_default_binds();
     load_binds_from_file();
 }
 
