@@ -126,6 +126,7 @@ void gameloop(const char *host, int port) {
                     state = 0;
                     open_menu(menu_manager_, make_endscreen(board));
                     if (board != NULL) deconstruct_tetris_board(board);
+                    board = NULL;
                 }
                 break;
         }
