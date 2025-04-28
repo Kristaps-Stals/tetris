@@ -1,12 +1,14 @@
 #include <ncurses.h>
 #include <stdlib.h>
-#include "keyboard_manager.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/stat.h>
+#include "keyboard_manager.h"
 #include "../../shared/kstring.h"
 
 keyboard_bind *binds;
+const char* config_folder = "config";
 const char* keyboard_config_file = "config/keyboard.config";
 
 void set_default_binds() {
@@ -79,6 +81,7 @@ void load_binds() {
 
 // saves current binds into file
 void save_binds() {
+    mkdir(config_folder, 0777);
     FILE *f = fopen(keyboard_config_file, "w");
     if (!f) return;
     for (int i = 0; i < TOTAL_BINDS; i++) {
