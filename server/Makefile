@@ -1,15 +1,24 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -I../shared -g
-PROG_NAME = tetris_server
-OBJS = main.o
+CC       = gcc
+CFLAGS   = -Wall -Wextra -g -I../shared
+PROG     = tetris_server
 
-all: $(PROG_NAME)
+SRCS     = main.c \
+           server.c \
+           connection.c \
+           client_manager.c \
+           message_handler.c
 
-$(PROG_NAME): $(OBJS)
-	$(CC) $(OBJS) -o $(PROG_NAME) $(CFLAGS)
+OBJS     = $(SRCS:.c=.o)
 
-main.o: main.c ../shared/protocol.h
-	$(CC) -c main.c $(CFLAGS)
+.PHONY: all clean
+
+all: $(PROG)
+
+$(PROG): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o $(PROG_NAME)
+	rm -f $(OBJS) $(PROG)

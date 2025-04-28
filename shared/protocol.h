@@ -28,6 +28,7 @@ typedef enum {
 
 #define PLAYER_ID_BROADCAST 255
 
+#define MAX_CLIENTS 8
 
 // HELLO
 typedef struct __attribute__((packed)) {
