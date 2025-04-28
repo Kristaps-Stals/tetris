@@ -210,6 +210,7 @@ score_report *update_clear_lines(void* board_) {
     if (base_garbage == 0 && lines_cleared != 0) {
         score_rep->garbage = hardcoded_0_garbage_combo_scaling(board->counters->combo);
     }
+    if (lines_cleared == 0) score_rep->garbage = 0; // if no lines cleared, no garbage is sent
 
     char b2b_text[20];
     b2b_text[0] = 0;
