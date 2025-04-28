@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include "net/net.h" 
+#include "menus/keyboard_manager.h"
 
 typedef long long ll;
 
@@ -55,6 +56,7 @@ void gameloop(const char *host, int port) {
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
+    init_binds();
     menu_manager *menu_manager_ = make_menu_manager();
     tetris_board *board = NULL;
     int state = 0; // 0 = in menus, 1 = playing
@@ -124,6 +126,7 @@ void gameloop(const char *host, int port) {
                     state = 0;
                     open_menu(menu_manager_, make_endscreen(board));
                     if (board != NULL) deconstruct_tetris_board(board);
+                    board = NULL;
                 }
                 break;
         }
@@ -133,6 +136,7 @@ void gameloop(const char *host, int port) {
     }
 
     if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
+    if (board != NULL) deconstruct_tetris_board(board);
 }
 
 int main(int argc, char **argv) {
