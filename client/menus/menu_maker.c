@@ -3,30 +3,15 @@
 #include "menu_maker.h"
 #include <stdlib.h>
 #include "string.h"
+#include "../../shared/kstring.h"
 #include "keyboard_manager.h"
-
-enum {
-    CLOSE_MENU = -1,
-    START_GAME = 1,
-    OPEN_SETTINGS = 2,
-    OPEN_KEYBINDINGS = 3,
-    SAVE_KEYBINDINGS = 4,
-    DEFAULT_KEYBINDINGS = 5,
-    CLOSE_KEYBINDINGS = 6
-};
-
-enum {
-    MAIN_MENU_ID = 0,
-    SETTINGS_MENU_ID = 1,
-    ENDSCREEN_MENU_ID = 2,
-    KEYBINDINGS_MENU_ID = 3
-};
 
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
     manager->max_stack = 10;
     manager->stack = malloc((manager->max_stack+1)*sizeof(textbox*));
     manager->top = 0;
+    manager->is_editing = false;
     manager->stack[0] = make_main_menu();
     return manager;
 }
@@ -40,12 +25,12 @@ void free_menu_manager(menu_manager *manager) {
 
 textbox *make_main_menu() {
     int w = 20;
-    int h = 5;
+    int h = 6;
     int x = (COLS-w)/2;
     int y = (LINES-h)/2;
 
     size_info *pos = make_size_info(h, w, y, x);
-    int ELEM_CNT = 4;
+    int ELEM_CNT = 5;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     size_info *pos_text1 = make_size_info(1, 9, 0, 2);
@@ -54,19 +39,24 @@ textbox *make_main_menu() {
     elems[0] = make_element(TEXT_ID, pos_text1, info_text1);
 
     size_info *pos_button1 = make_size_info(1, 18, 1, 1);
-    textbox_neighbours *next_button1 = make_neighbours(3, -1, 2, -1);
-    textbox_button *info_button1 = make_button("       play       ", START_GAME, next_button1);
+    textbox_neighbours *next_button1 = make_neighbours(4, -1, 2, -1);
+    textbox_button *info_button1 = make_button("       solo       ", START_GAME, next_button1);
     elems[1] = make_element(BUTTON_ID, pos_button1, info_button1);
 
-    size_info *pos_button2 = make_size_info(1, 18, 2, 1);
-    textbox_neighbours *next_button2 = make_neighbours(1, -1, 3, -1);
-    textbox_button *info_button2 = make_button("     settings     ", OPEN_SETTINGS, next_button2);
-    elems[2] = make_element(BUTTON_ID, pos_button2, info_button2);
+    size_info *pos_button4 = make_size_info(1, 18, 2, 1);
+    textbox_neighbours *next_button4 = make_neighbours(1, -1, 3, -1);
+    textbox_button *info_button4 = make_button("      versus      ", OPEN_JOIN, next_button4);
+    elems[2] = make_element(BUTTON_ID, pos_button4, info_button4);
 
-    size_info *pos_button3 = make_size_info(1, 18, 3, 1);
-    textbox_neighbours *next_button3 = make_neighbours(2, -1, 1, -1);
+    size_info *pos_button2 = make_size_info(1, 18, 3, 1);
+    textbox_neighbours *next_button2 = make_neighbours(2, -1, 4, -1);
+    textbox_button *info_button2 = make_button("     settings     ", OPEN_SETTINGS, next_button2);
+    elems[3] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    size_info *pos_button3 = make_size_info(1, 18, 4, 1);
+    textbox_neighbours *next_button3 = make_neighbours(3, -1, 1, -1);
     textbox_button *info_button3 = make_button("       quit       ", CLOSE_MENU, next_button3);
-    elems[3] = make_element(BUTTON_ID, pos_button3, info_button3);
+    elems[4] = make_element(BUTTON_ID, pos_button3, info_button3);
 
     return make_textbox(pos, elems, ELEM_CNT, 1, MAIN_MENU_ID);
 }
@@ -197,9 +187,58 @@ textbox *make_keybind_menu() {
     return make_textbox(pos, elems, ELEM_CNT, 1, KEYBINDINGS_MENU_ID);
 }
 
+textbox *make_join_menu() {
+    int w = 23;
+    int h = 4;
+    int x = (COLS-w)/2;
+    int y = (LINES-h)/2;
+
+    size_info *pos = make_size_info(h, w, y, x);
+
+    int ELEM_CNT = 6;
+    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
+    
+    size_info *pos_write = make_size_info(1, 15, 1, 1);
+    textbox_neighbours *next_write = make_neighbours(4, 1, 4, 1);
+    textbox_write *info_write = make_write_elem("", 15, WRITE_ID_JOIN_IP, next_write);
+    elems[0] = make_element(WRITE_ELEMENT_ID, pos_write, info_write);
+
+    pos_write = make_size_info(1, 5, 1, 17);
+    next_write = make_neighbours(3, 0, 3, 0);
+    info_write = make_write_elem("", 5, WRITE_ID_JOIN_PORT, next_write);
+    elems[1] = make_element(WRITE_ELEMENT_ID, pos_write, info_write);
+
+    size_info *pos_text1 = make_size_info(1, 4, 0, 2);
+    textbox_text *info_text1 = make_text("Join");
+    elems[2] = make_element(TEXT_ID, pos_text1, info_text1);
+
+    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
+    textbox_neighbours *next_button1 = make_neighbours(1, 4, 1, 4);
+    textbox_button *info_button1 = make_button("back", CLOSE_MENU, next_button1);
+    elems[3] = make_element(BUTTON_ID, pos_button1, info_button1);
+
+    size_info *pos_button2 = make_size_info(1, 4, h-2, w-1-4-6);
+    textbox_neighbours *next_button2 = make_neighbours(0, 3, 0, 3);
+    textbox_button *info_button2 = make_button("join", ATTEMPT_JOIN, next_button2);
+    elems[4] = make_element(BUTTON_ID, pos_button2, info_button2);
+
+    size_info *pos_text2 = make_size_info(1, 1, 1, 16);
+    textbox_text *info_text2 = make_text(":");
+    elems[5] = make_element(TEXT_ID, pos_text2, info_text2);
+
+    return make_textbox(pos, elems, ELEM_CNT, 0, JOIN_LOBBY_MENU_ID);
+}
+
 // tries to open <new_menu>, returns true on success, false on failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
     if (manager->top == manager->max_stack) return false;
+
+    // erase previous window
+    textbox **stack = manager->stack;
+    werase(stack[manager->top]->win);
+    wrefresh(stack[manager->top]->win);
+
+    // add new window
     manager->top++;
     manager->stack[manager->top] = new_menu;
     return true;
@@ -223,11 +262,17 @@ int update_menus(menu_manager *manager, int user_input) {
     textbox *active_menu = stack[top];
     int ret = update_textbox(active_menu, user_input);
     if (ret == CLOSE_MENU || user_input == get_keyboard_button(MENU_BACK)) {
-        if (stack[manager->top]->id != KEYBINDINGS_MENU_ID) { // disable default back in keybindings
+        if (
+            stack[manager->top]->id != KEYBINDINGS_MENU_ID && // disable default back in keybindings
+            manager->is_editing == false // make sure nothing is being edited
+        ) { 
             // close menu and go back one layer
             pop_menu_stack(manager);
         }
     }
+
+    if (ret == STOP_EDITING) manager->is_editing = false;
+    if (ret == START_EDITING) manager->is_editing = true;
 
     if (ret > 0) return ret;
     return 0;
@@ -236,6 +281,38 @@ int update_menus(menu_manager *manager, int user_input) {
 void close_keybindings(menu_manager *manager) {
     load_binds();
     pop_menu_stack(manager);
+}
+
+// length does not include null byte
+// mallocs a copy of the text, dont forget to free after use
+char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) {
+    textbox **stack = manager->stack;
+    int top = manager->top;
+    
+    for (int i = 0; i < stack[top]->element_count; i++) {
+        if (stack[top]->elements[i]->type == WRITE_ELEMENT_ID) {
+            textbox_write *info = stack[top]->elements[i]->info;
+            if (info->write_id != write_id || info->text == NULL) continue;
+            *length = info->curr_len;
+            return copy_text(info->text);
+        }
+    }
+
+    // id not found
+    *length = 0;
+    return NULL;
+}
+
+void attempt_join_lobby(menu_manager *manager) {
+    int ip_len, port_len;
+    char* ip_text = fetch_text_from_element(manager, WRITE_ID_JOIN_IP, &ip_len);
+    char* port_text = fetch_text_from_element(manager, WRITE_ID_JOIN_PORT, &port_len);
+    if (ip_text != NULL && port_text != NULL) {
+        // TODO: attempt to join
+        // func(ip_text, ip_len, port_text, port_len);
+    }
+    if (ip_text != NULL) free(ip_text);
+    if (port_text != NULL) free(port_text);
 }
 
 // returns signals for main gameloop
@@ -255,6 +332,9 @@ int manage_menus(menu_manager *manager, int user_input) {
         case OPEN_KEYBINDINGS:
             open_menu(manager, make_keybind_menu());
             break;
+        case OPEN_JOIN:
+            open_menu(manager, make_join_menu());
+            break;
         case SAVE_KEYBINDINGS:
             save_binds();
             close_keybindings(manager);
@@ -264,6 +344,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case CLOSE_KEYBINDINGS:
             close_keybindings(manager);
+            break;
+        case ATTEMPT_JOIN:
+            attempt_join_lobby(manager);
             break;
     }
     return ret;

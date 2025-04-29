@@ -1,5 +1,8 @@
+#define _XOPEN_SOURCE 700 // dont know what it does, but without it sigaction highlighting doesnt work
 #include <ncurses.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <time.h>
 #include "textbox.h"
 #include "../shared/kstring.h"
 #include "keyboard_manager.h"
@@ -25,27 +28,34 @@ textbox_neighbours *make_neighbours(int up, int right, int down, int left) {
 }
 // default free
 
-void update_selected(textbox *tbox, textbox_neighbours *next, int user_input) {
+// returns 1 if selected is updated
+int update_selected(textbox *tbox, textbox_neighbours *next, int user_input) {
+    int ret = 0;
     if (user_input == get_keyboard_button(MENU_UP)) {
         if (next->up >= 0) {
             tbox->element_selected = next->up;
+            ret = 1;
         }
     }
     if (user_input == get_keyboard_button(MENU_RIGHT)) {
         if (next->right >= 0) {
             tbox->element_selected = next->right;
+            ret = 1;
         }
     }
     if (user_input == get_keyboard_button(MENU_DOWN)) {
         if (next->down >= 0) {
             tbox->element_selected = next->down;
+            ret = 1;
         }
     }
     if (user_input == get_keyboard_button(MENU_LEFT)) {
         if (next->left >= 0) {
             tbox->element_selected = next->left;
+            ret = 1;
         }
     }
+    return ret;
 }
 
 // returns true if user has pressed menu select
@@ -185,22 +195,128 @@ void draw_keybind_select(WINDOW *win, textbox_element *element, int is_selected)
         if (*text == 0) break;
     }
 }
-int update_handle_keybind_select(textbox *tbox, int user_inp) {
+int update_handle_keybind_select(textbox *tbox, int user_input) {
     textbox_element *selected_elem = tbox->elements[tbox->element_selected];
     textbox_keybind_select *info = selected_elem->info;
     textbox_neighbours *next = info->neighbour;
 
     if (info->is_editing) {
-        if (user_inp == -1) return 0;
-        set_keyboard_button(info->keybind_id, user_inp);
+        if (user_input == -1) return 0;
+        set_keyboard_button(info->keybind_id, user_input);
         info->is_editing = false;
         return 0;
     }
 
-    update_selected(tbox, next, user_inp);
+    update_selected(tbox, next, user_input);
 
-    if (is_menu_select_pressed(user_inp)) {
+    if (is_menu_select_pressed(user_input)) {
         info->is_editing = true;
+    }
+
+    return 0;
+}
+
+// WRITING ELEMENT
+textbox_write *make_write_elem(
+    char* default_text,
+    int max_len,
+    int write_id,
+    textbox_neighbours *neighbours
+) {
+    textbox_write *write_elem = malloc(sizeof(textbox_write));
+
+    write_elem->text = calloc(max_len+1, sizeof(char));
+    write_elem->curr_len = char_len(default_text);
+    assert(write_elem->curr_len <= max_len);
+    char_copy_char(default_text, write_elem->text);
+
+    write_elem->max_len = max_len;
+    write_elem->write_id = write_id;
+    write_elem->is_editing = false;
+    write_elem->neighbour = neighbours;
+    return write_elem;
+}
+void free_write_elem(textbox_write *write_elem) {
+    free(write_elem->text);
+    free(write_elem->neighbour);
+    free(write_elem);
+}
+void draw_write_elem(WINDOW *win, textbox_element *element, int is_selected) {
+    size_info *pos = element->pos;
+    textbox_write *info = element->info;
+    char *text = info->text;
+
+    for (int i = 0; i < pos->h; i++) for (int j = 0; j < pos->w; j++) {
+        if (is_selected) mvwaddch(win, pos->y+i, pos->x+j, ' ' | A_REVERSE);
+    }
+
+    int len = info->curr_len;
+
+    int at_char = len-1;
+    int cursor_pos = len;
+    if (cursor_pos > pos->w-1) cursor_pos = pos->w-1;
+
+    int start_idx = len-1;
+    int right_space = 1;
+    if (info->is_editing && info->curr_len != info->max_len) right_space = 2;
+    if (start_idx > pos->w-right_space) start_idx = pos->w-right_space;
+
+    for (int i = start_idx; i >= 0; i--) {
+        if (at_char < 0) break;
+        if (is_selected) {
+            mvwaddch(win, pos->y, pos->x+i, text[at_char] | A_REVERSE);
+        } else {
+            mvwaddch(win, pos->y, pos->x+i, text[at_char]);
+        }
+        at_char--;
+    }
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    int ms = now.tv_nsec/1e6;
+    int phase = 0;
+    if (ms >= 500) phase = 1;
+    if (info->is_editing && info->curr_len != info->max_len) {
+        if (phase == 0) {
+            mvwaddch(win, pos->y, pos->x+cursor_pos, ' ' | A_REVERSE);
+        }
+        if (phase == 1) {
+            mvwaddch(win, pos->y, pos->x+cursor_pos, ' ');
+        }
+    }
+}
+int update_write_elem(textbox *tbox, int user_input) {
+    textbox_element *selected_elem = tbox->elements[tbox->element_selected];
+    textbox_write *info = selected_elem->info;
+    textbox_neighbours *next = info->neighbour;
+
+    if (info->is_editing) {
+        if (user_input == 10 || user_input == 27) { // enter or escape
+            info->is_editing = false;
+            return STOP_EDITING;
+        }
+        if (user_input == 263) { // backspace
+            if (info->curr_len <= 0) return 0;
+            info->curr_len--;
+            info->text[info->curr_len] = 0;
+            return 0;
+        }
+        if (user_input >= 32 && user_input <= 255) {
+            if (info->curr_len >= info->max_len) return 0;
+            info->text[info->curr_len] = user_input;
+            info->curr_len++;
+            return 0;
+        }
+        return 0;
+    }
+
+    if (update_selected(tbox, next, user_input)) {
+        return 0;
+    }
+
+    if (is_menu_select_pressed(user_input)) {
+        info->is_editing = true;
+        return START_EDITING;
     }
 
     return 0;
@@ -225,6 +341,9 @@ void free_element(textbox_element *elem) {
         case KEYBIND_SELECT_ID:
             free_keybind_select(elem->info);
             break;
+        case WRITE_ELEMENT_ID:
+            free_write_elem(elem->info);
+            break;
     }
     free(elem->pos);
     free(elem);
@@ -239,6 +358,9 @@ void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
             break;
         case KEYBIND_SELECT_ID:
             draw_keybind_select(win, element, is_selected);
+            break;
+        case WRITE_ELEMENT_ID:
+            draw_write_elem(win, element, is_selected);
             break;
     }
 }
@@ -290,6 +412,9 @@ int update_textbox(textbox *tbox, int user_input) {
                 break;
             case KEYBIND_SELECT_ID:
                 ret_val = update_handle_keybind_select(tbox, user_input);
+                break;
+            case WRITE_ELEMENT_ID:
+                ret_val = update_write_elem(tbox, user_input);
                 break;
         }
     }
