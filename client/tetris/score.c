@@ -60,15 +60,15 @@ void free_score_report(score_report *score_report) {
 // returns amount of lines cleared
 int check_line_clear(tetris_board *board) {
     int lines_cleared = 0;
-    for (int i = 0; i < board->height; i++) {
+    for (int i = board->height-1; i >= 0; i--) {
         int bad = 0;
         for (int j = 0; j < board->width; j++) {
             if (board->state[i][j] == -1) bad = 1;
         }
         if (bad) continue;
-        for (int ii = i-1; ii >= 0; ii--) {
+        for (int ii = i+1; ii < board->height; ii++) {
             for (int j = 0; j < board->width; j++) {
-                board->state[ii+1][j] = board->state[ii][j];
+                board->state[ii-1][j] = board->state[ii][j];
             }
         }
         lines_cleared++;
@@ -97,7 +97,7 @@ int check_line_clear(tetris_board *board) {
 // X
 
 const int dirx[4] = {0, 2, 2, 0};
-const int diry[4] = {0, 0, 2, 2};
+const int diry[4] = {0, 0, -2, -2};
 
 void get_t_spin_heuristic(tetris_board *board, int *front, int *back) {
     int vals[4];
@@ -182,6 +182,8 @@ score_report *update_clear_lines(void* board_) {
     int clear_type = get_line_clear_type(board); // do before actually clearing
 
     int lines_cleared = check_line_clear(board); // actually clear
+    score_rep->lines_cleared = lines_cleared;
+    
     int current_level = board->difficulty_manager->current_level+1; // 0-indexed    
 
     scoring_info s_info = clear_types[clear_type][lines_cleared];

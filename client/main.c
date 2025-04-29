@@ -107,8 +107,10 @@ void gameloop(const char *host, int port) {
                     // setup tetris
                     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
                     board_settings->bag_seed = 0;
-                    board_settings->play_height = 22;
+                    board_settings->play_height = 40;
                     board_settings->play_width = 10;
+                    board_settings->window_height = 22;
+                    board_settings->window_width = 10;
                     board = construct_tetris_board(board_settings);
                     free(board_settings);
                 }
@@ -165,6 +167,8 @@ int main(int argc, char **argv) {
     init_color(COLOR_GREEN, 0, 1000, 0);
     init_color(COLOR_MAGENTA, 600, 0, 1000);
     init_color(COLOR_RED, 1000, 0, 0);
+    init_color(65, 500, 100, 50); // dark red
+    init_color(66, 400, 400, 400); // gray
 
     init_pair(1, COLOR_CYAN, COLOR_CYAN); // I piece
     init_pair(2, COLOR_BLUE, COLOR_BLUE); // J piece
@@ -173,8 +177,11 @@ int main(int argc, char **argv) {
     init_pair(5, COLOR_GREEN, COLOR_GREEN); // S piece
     init_pair(6, COLOR_MAGENTA, COLOR_MAGENTA); // T piece
     init_pair(7, COLOR_RED, COLOR_RED); // Z piece
+    init_pair(8, 66, 66); // gray for garbage
 
     init_pair(10, COLOR_RED, COLOR_BLACK); // used for warning
+    init_pair(11, COLOR_RED, COLOR_RED); // used for armed garbage
+    init_pair(12, 65, 65); // used for unarmed garbage
 
     cbreak(); // or raw(), disables input buffering
     // raw(); // disables signals like ctrl+c

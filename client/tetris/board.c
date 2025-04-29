@@ -16,11 +16,17 @@ const int DIR_LEFT = 3;
 
 // normal directions {y, x}
 const int normal_dir[4][2] = {
-    {-1, 0}, // up
+    {1, 0}, // up
     {0, 1}, // right
-    {1, 0}, // down
+    {-1, 0}, // down
     {0, -1} // left
 };
+
+void delete_window(WINDOW *win) {
+    werase(win);
+    wrefresh(win);
+    delwin(win);
+}
 
 tetromino *deepcpy_tetromino(tetromino *a) {
     tetromino *b = malloc(sizeof(tetromino));
@@ -33,12 +39,12 @@ tetromino *deepcpy_tetromino(tetromino *a) {
 
 // returns highest placed piece
 int calculate_highest_piece(tetris_board *board){
-    for (int i = 0; i < board->height; i++) {
+    for (int i = board->height-1; i >= 0; i--) {
         for (int j = 0; j < board->width; j++) {
             if (board->state[i][j] != -1) return i;
         }
     }
-    return board->height; // returns the floor as the highest piece
+    return 0; // returns the floor as the highest piece
 }
 
 // returns array of block positions for tetromino <t>
@@ -46,7 +52,7 @@ int **get_tetromino_positions(tetromino *t) {
     int **pos = malloc(4*sizeof(int*));
     for (int i = 0; i < 4; i++) {
         pos[i] = malloc(2*sizeof(int));
-        pos[i][0] = t->y+get_shapes(t->type, t->rotation, i, 0);
+        pos[i][0] = t->y-get_shapes(t->type, t->rotation, i, 0);
         pos[i][1] = t->x+get_shapes(t->type, t->rotation, i, 1);
     }
     return pos;
@@ -88,9 +94,9 @@ tetris_bag_manager *construct_bag_manager(tetris_board* board, int seed) {
     manager->held_tetromino = -1;
 
     // make hold window
-    manager->hold_w = 12;
+    manager->hold_w = 8;
     manager->hold_h = 6;
-    manager->hold_x = board->win_x-manager->hold_w;
+    manager->hold_x = board->win_x-manager->hold_w-2;
     manager->hold_y = board->win_y;
     manager->hold = newwin(manager->hold_h, manager->hold_w, manager->hold_y, manager->hold_x);
 
@@ -111,7 +117,7 @@ tetromino *construct_tetromino(tetromino_construct_info *info) {
     int piece_width = get_shape_spawn_width(ret->type);
     int center_2x = play_width; // center * 2
     ret->x = (center_2x-piece_width)/2;
-    ret->y = 0;
+    ret->y = 21;
     ret->rotation = 0;
     return ret;
 }
@@ -204,21 +210,184 @@ void free_info_manager(tetris_info_manager *info_manager) {
     free(info_manager);
 }
 
+tetris_garbage_manager *construct_tetris_garbage_manager(tetris_board *board) {
+    tetris_garbage_manager *manager = malloc(sizeof(tetris_garbage_manager));
+
+    manager->h = board->win_y+board->win_h-1; // extends to the top of the screen, may be a problem if something is above board
+    manager->w = 1;
+    manager->y = 0;
+    manager->x = board->win_x-1;
+
+    manager->win = newwin(
+        manager->h,
+        manager->w,
+        manager->y,
+        manager->x
+    );
+
+    manager->armed_garbage = 0;
+    manager->max_garbage_in_queue = 20;
+    manager->time_to_arm = 500*1e3; // 500 ms to arm
+    manager->queue_amount = malloc(manager->max_garbage_in_queue*sizeof(int));
+    manager->queue_timer = malloc(manager->max_garbage_in_queue*sizeof(int));
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        manager->queue_amount[i] = 0;
+        manager->queue_timer[i] = 0;
+    }
+    return manager;
+}
+void free_garbage_manager(tetris_garbage_manager *manager){
+    delete_window(manager->win);
+    free(manager->queue_amount);
+    free(manager->queue_timer);
+    free(manager);
+}
+// called upon dropping a piece and not clearing a line
+int trigger_garbage(tetris_board *board) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+    int amount_to_add = 8;
+    if (manager->armed_garbage < amount_to_add) amount_to_add = manager->armed_garbage;
+    if (amount_to_add == 0) return 0;
+
+    manager->armed_garbage -= amount_to_add;
+    for (int i = board->height-1; i >= 0; i--) {
+        for (int j = 0; j < board->width; j++) {
+            int target_y = i+amount_to_add;
+            if (board->state[i][j] != -1) {
+                if (target_y >= board->height) return 1; // garbage out of bounds, lose state    
+                board->state[target_y][j] = board->state[i][j];
+            } else {
+                if (target_y < board->height) {
+                    board->state[target_y][j] = board->state[i][j];
+                }
+            }
+        }
+    }
+
+    int gap_x = rand()%board->width;
+    int at_y = 0;
+    while (amount_to_add > 0 && at_y < board->height) {
+        for (int i = 0; i < board->width; i++) {
+            if (i == gap_x) board->state[at_y][i] = -1;
+            else board->state[at_y][i] = 7;
+        }
+        at_y++;
+        amount_to_add--;
+    }
+    return 0;
+}
+// called every frame
+void update_garbage(tetris_garbage_manager *manager, int delta_time) {
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        if (manager->queue_amount[i] == 0) continue;
+        manager->queue_timer[i] -= delta_time;
+        if (manager->queue_timer[i] <= 0) {
+            manager->armed_garbage += manager->queue_amount[i];
+            manager->queue_amount[i] = 0;
+        }
+    }
+}
+// called when need to add new garbage
+void add_garbage(tetris_board *board, int amount) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+    int small_id = 0; // id of smallest time left
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        if (manager->queue_amount[i] == 0) {
+            manager->queue_amount[i] = amount;
+            manager->queue_timer[i] = manager->time_to_arm;
+            return;
+        }
+        if (manager->queue_timer[i] < manager->queue_timer[small_id]) small_id = i;
+    }
+    // if no empty spots in queue, force smallest time out
+    manager->armed_garbage += manager->queue_amount[small_id];
+    manager->queue_amount[small_id] = amount;
+    manager->queue_timer[small_id] = manager->time_to_arm;
+}
+void send_garbage(tetris_board *board, int garbage_amount) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+
+    // 1. remove from armed garbage
+    int remove_armed_garbage_amount = garbage_amount;
+    if (manager->armed_garbage < garbage_amount) remove_armed_garbage_amount = manager->armed_garbage;
+    manager->armed_garbage -= remove_armed_garbage_amount;
+    garbage_amount -= remove_armed_garbage_amount;
+
+    // 2. remove from garbage in queue
+    while (garbage_amount > 0) {
+        int low_id = 0;
+        bool have_queue = false;
+        for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+            if (manager->queue_amount[i] != 0) {
+                have_queue = true;
+                if (
+                    manager->queue_amount[low_id] == 0 ||
+                    (manager->queue_timer[i] < manager->queue_timer[low_id] &&
+                    manager->queue_amount[i] != 0)
+                ) {
+                    low_id = i;
+                }
+            }
+        }
+        if (have_queue == false) break; // no more in queue
+        int rem_amount = garbage_amount;
+        if (manager->queue_amount[low_id] < garbage_amount) rem_amount = manager->queue_amount[low_id];
+        manager->queue_amount[low_id] -= rem_amount;
+        garbage_amount -= rem_amount;
+    }
+
+    if (garbage_amount == 0) return;
+
+    // 3. send remainng to opponent
+    mvprintw(0, 0, "sent %d lines", garbage_amount);
+    refresh();
+    
+}
+void draw_garbage(tetris_garbage_manager *manager) {
+    
+    for (int i = 0; i < manager->h; i++) {
+        mvwaddch(manager->win, i, 0, ' ');
+    }
+
+    int armed = manager->armed_garbage;
+    int not_armed = 0;
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        not_armed += manager->queue_amount[i];
+    }
+
+    int at_y = manager->h-1;
+    while (armed > 0) {
+        if (at_y < 0) break;
+        armed--;
+        mvwaddch(manager->win, at_y, 0, ' ' | COLOR_PAIR(11));
+        at_y--;
+    }
+    while (not_armed > 0) {
+        if (at_y < 0) break;
+        not_armed--;
+        mvwaddch(manager->win, at_y, 0, ' ' | COLOR_PAIR(12));
+        at_y--;
+    }
+    
+    wrefresh(manager->win);
+}
+
 tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     tetris_board *board = malloc(sizeof(tetris_board));
-    int h = settings->play_height;
-    int w = settings->play_width;
 
     // play space
-    board->height = h;
-    board->width = w;
-    board->state = (int**)malloc(h*sizeof(int*));
-    for (int i = 0; i < h; i++) {
-        board->state[i] = malloc(w*sizeof(int));
-        for (int j = 0; j < w; j++) {
+    board->height = settings->play_height;
+    board->width = settings->play_width;
+    board->state = (int**)malloc(board->height*sizeof(int*));
+    for (int i = 0; i < board->height; i++) {
+        board->state[i] = malloc(board->width*sizeof(int));
+        for (int j = 0; j < board->width; j++) {
             board->state[i][j] = -1;
         }
     }
+
+    int h = settings->window_height;
+    int w = settings->window_width;
 
     // main window
     board->win_h = h+2;
@@ -239,6 +408,9 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->bag_manager = construct_bag_manager(board, time(NULL));
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
 
+    // garbage
+    board->garbage_manager = construct_tetris_garbage_manager(board);
+
     // others
     board->highest_tetromino = calculate_highest_piece(board);
     board->info_manager = make_default_info_manager(board);
@@ -252,7 +424,7 @@ bool can_move(tetris_board *board, tetromino *t, int dir) {
     for (int i = 0; i < 4; i++) {
         int y = pos[i][0] + normal_dir[dir][0];
         int x = pos[i][1] + normal_dir[dir][1];
-        if (x < 0 || x >= board->width || y >= board->height || board->state[y][x] != -1) {
+        if (x < 0 || y < 0 || x >= board->width || y >= board->height || board->state[y][x] != -1) {
             free_pos(pos);
             return false;
         }
@@ -279,12 +451,19 @@ void new_tetromino_reset(tetris_board *board) {
 }
 
 // will free the score report
-void handle_score_report(tetris_board *board, score_report *score_rep) {
+// returns 1 when game lost due to out of bounds garbage
+int handle_score_report(tetris_board *board, score_report *score_rep) {
     // add score
     board->counters->score += score_rep->score;
 
     // TODO: send garbage
+    send_garbage(board, score_rep->garbage);
 
+    // trigger own garbage if no lines cleared
+    int ret = 0;
+    if (score_rep->lines_cleared == 0) {
+        ret = trigger_garbage(board);
+    }
 
     // draw messages at bottom of board
     WINDOW *win = board->info_manager->clear_win;
@@ -311,10 +490,12 @@ void handle_score_report(tetris_board *board, score_report *score_rep) {
     wrefresh(win);
 
     free_score_report(score_rep);
+    return ret;
 }
 
 // hard drops the active tetromino in <board>
-void hard_drop(tetris_board *board) {
+// returns 1 when lost due to out of bounds garbage
+int hard_drop(tetris_board *board) {
     while (can_move(board, board->active_tetromino, DIR_DOWN)) {
         move_tetromino(board, board->active_tetromino, DIR_DOWN);
         board->counters->score += 2; // score per line for hard drop
@@ -326,12 +507,13 @@ void hard_drop(tetris_board *board) {
         board->state[y][x] = board->active_tetromino->type;
     }
     free_pos(pos);
-    handle_score_report(board, update_clear_lines(board)); // update this before we take new piece, so it properly checks t-spins
+    int ret = handle_score_report(board, update_clear_lines(board)); // update this before we take new piece, so it properly checks t-spins
     free(board->active_tetromino);
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     board->counters->hold_count = 0;
     board->highest_tetromino = calculate_highest_piece(board);
     new_tetromino_reset(board);
+    return ret;
 }
 
 // returns true if tetromino <test> (assumed to be an actively falling tetromino)
@@ -351,19 +533,22 @@ bool valid_pos(tetromino *test, tetris_board *board) {
 }
 
 // tries to move the active tetromino in <board> down
-void apply_gravity(tetris_board *board) {
+// returns 1 when game lost due to out of bounds garbage
+int apply_gravity(tetris_board *board) {
     board->counters->gravity_count++;
     if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
         board->counters->last_rotation = -1;
-        return;
+        return 0;
     }
     if (
         board->counters->lock_delay >= board->limits->lock_delay ||
         board->counters->lock_times >= board->limits->lock_times ||
         board->counters->gravity_count >= board->limits->gravity_count
     ) {
-        hard_drop(board);
+        int ret = hard_drop(board);
+        if (ret == 1) return 1;
     }
+    return 0;
 }
 
 // swaps active tetromino with hold tetromino (if exists)
@@ -433,6 +618,7 @@ int update_board(tetris_board_update *update) {
     counters->total_time_elapsed += delta_time;
     update_tetris_difficulty(board);
 
+    if (user_input == 'p') add_garbage(board, 1);
     // user input
     if (user_input == get_keyboard_button(GAME_ROTATE_RIGHT)){
         if (rotate_tetromino(board, DIR_RIGHT)) {
@@ -469,7 +655,8 @@ int update_board(tetris_board_update *update) {
     }
     if (user_input == get_keyboard_button(GAME_HARDDROP)) {
         board->counters->last_rotation = -1;
-        hard_drop(board);
+        int ret = hard_drop(board);
+        if (ret == 1) return 1;
     }
 
     // advance lock_delay if on ground
@@ -481,7 +668,8 @@ int update_board(tetris_board_update *update) {
     counters->time_since_gravity += delta_time;
     while (counters->time_since_gravity > limits->time_since_gravity) {
         counters->time_since_gravity -= limits->time_since_gravity;
-        apply_gravity(board);
+        int ret = apply_gravity(board);
+        if (ret == 1) return ret;
     }
 
     // lose condition
@@ -489,8 +677,10 @@ int update_board(tetris_board_update *update) {
         return 1;
     }
 
+    update_garbage(board->garbage_manager, update->delta_time);
     draw_tetris_board(board);
     update_info_manager(board);
+    
     return 0;
 }
 
@@ -526,7 +716,7 @@ void draw_upcoming(tetris_board *board) {
     }
 
     // draw window title
-    int mid = (bag->hold_w-4)/2;
+    int mid = (bag->upcoming_w-4)/2;
     mvwprintw(bag->upcoming, 1, mid, "NEXT");
 
     // draw upcoming pieces
@@ -542,8 +732,8 @@ void draw_upcoming(tetris_board *board) {
         int base_x = (bag->upcoming_w-w*2)/2;
         int **pos = get_tetromino_positions(&t);
         for (int j = 0; j < 4; j++) {
-            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
-            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
+            mvwaddch(bag->upcoming, base_y-pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
+            mvwaddch(bag->upcoming, base_y-pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
         }
         free_pos(pos);
     }
@@ -581,8 +771,8 @@ void draw_hold(tetris_board *board) {
         t.y = 0;
         int **pos = get_tetromino_positions(&t);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(bag->hold, base_y+pos[i][0], base_x+pos[i][1]*2, ' ' | COLOR_PAIR(tetromino_id+1));
-            mvwaddch(bag->hold, base_y+pos[i][0], base_x+pos[i][1]*2+1, ' ' | COLOR_PAIR(tetromino_id+1));
+            mvwaddch(bag->hold, base_y-pos[i][0], base_x+pos[i][1]*2, ' ' | COLOR_PAIR(tetromino_id+1));
+            mvwaddch(bag->hold, base_y-pos[i][0], base_x+pos[i][1]*2+1, ' ' | COLOR_PAIR(tetromino_id+1));
         }
         free_pos(pos);
     }
@@ -613,23 +803,26 @@ void draw_tetris_board(tetris_board *board) {
     for (int i = 0; i < h; i++) {
         for (int j = 0; j < w; j++) {
             if (board->state[i][j] == -1) continue;
-            if (board->state[i][j] == 3) wattron(board->win, A_BOLD);
-            mvwaddch(board->win, i+1, 2*j+1, ' ' | COLOR_PAIR(board->state[i][j]+1));
-            mvwaddch(board->win, i+1, 2*j+2, ' ' | COLOR_PAIR(board->state[i][j]+1));
-            if (board->state[i][j] == 3) wattroff(board->win, A_BOLD);
+            int draw_y = board->win_h-2-i;
+            int draw_x1 = 2*j+1;
+            int draw_x2 = 2*j+2;
+            if (draw_y >= 0){
+                mvwaddch(board->win, draw_y, draw_x1, ' ' | COLOR_PAIR(board->state[i][j]+1));
+                mvwaddch(board->win, draw_y, draw_x2, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            }
         }
     }
 
     if (board->active_tetromino != NULL) {
         // draw warning
-        if (board->highest_tetromino <= 5) {
+        if (board->highest_tetromino >= 16) {
             tetromino *warning = take_from_bag(board, board->bag_manager, true);
             int **pos = get_tetromino_positions(warning);
             int phase = (board->counters->total_time_elapsed/(1000*500))%2; // phase flips 0/1 every 500ms
             for (int i = 0; i < 4; i++) {
                 if (phase == 1) {
-                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
-                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
                 }
             }
             free(warning);
@@ -641,8 +834,8 @@ void draw_tetris_board(tetris_board *board) {
         while (move_tetromino(board, prediction, DIR_DOWN));
         int **pos = get_tetromino_positions(prediction);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, '@');
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, '@');
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, '@');
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, '@');
         }
         free_pos(pos);
         free(prediction);
@@ -650,8 +843,8 @@ void draw_tetris_board(tetris_board *board) {
         // draw active tetromino
         pos = get_tetromino_positions(board->active_tetromino);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
         }
         free_pos(pos);
     }
@@ -660,24 +853,19 @@ void draw_tetris_board(tetris_board *board) {
     // draw other related windows
     draw_hold(board);
     draw_upcoming(board);
+    draw_garbage(board->garbage_manager);
 }
 
 void free_bag_manager(tetris_bag_manager *bag) {
-    werase(bag->upcoming);
-    wrefresh(bag->upcoming);
-    delwin(bag->upcoming);
-    werase(bag->hold);
-    wrefresh(bag->hold);
-    delwin(bag->hold);
+    delete_window(bag->upcoming);
+    delete_window(bag->hold);
     free(bag->now);
     free(bag->next);
     free(bag);
 }
 
 void deconstruct_tetris_board(tetris_board *board) {
-    werase(board->win);
-    wrefresh(board->win);
-    delwin(board->win);
+    delete_window(board->win);
     for(int i = 0; i < board->height; i++) {
         free(board->state[i]);
     }
@@ -688,5 +876,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free_bag_manager(board->bag_manager);
     free_tetris_difficulty_manager(board->difficulty_manager);
     free_info_manager(board->info_manager);
+    free_garbage_manager(board->garbage_manager);
     free(board);
 }
