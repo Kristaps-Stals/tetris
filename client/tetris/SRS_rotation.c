@@ -95,10 +95,10 @@ bool rotate_tetromino(tetris_board *board, int dir) {
     }
 
     for (int i = 0; i < 5; i++) {
-        int y_dif = normal_rot_right[rot_idx][i][0];
+        int y_dif = -normal_rot_right[rot_idx][i][0];
         int x_dif = normal_rot_right[rot_idx][i][1];
         if (test->type == 0) { // if I piece
-            y_dif = I_rot_right[rot_idx][i][0];
+            y_dif = -I_rot_right[rot_idx][i][0];
             x_dif = I_rot_right[rot_idx][i][1];
         }
         if (dir == 3) { // flip to the left rotation values
