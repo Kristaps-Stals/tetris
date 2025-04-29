@@ -63,7 +63,7 @@ typedef struct tetris_board {
     int win_x, win_y; // pos of the top left corner of window
     int width, height; // width and height of the play area NOT THE WINDOW!
     int win_w, win_h; // width and height of THE WINDOW!
-    int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos, [y][x]
+    int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos, [y][x], 7 = garbage
     int highest_tetromino; // highest placed tetromino
 
     tetromino *active_tetromino; // actively falling tetromino

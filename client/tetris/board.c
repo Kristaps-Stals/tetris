@@ -243,9 +243,38 @@ void free_garbage_manager(tetris_garbage_manager *manager){
     free(manager);
 }
 // called upon dropping a piece and not clearing a line
-void trigger_garbage(tetris_board *board) {
+int trigger_garbage(tetris_board *board) {
     tetris_garbage_manager *manager = board->garbage_manager;
-    // TODO add garbage
+    int amount_to_add = 8;
+    if (manager->armed_garbage < amount_to_add) amount_to_add = manager->armed_garbage;
+    if (amount_to_add == 0) return 0;
+
+    manager->armed_garbage -= amount_to_add;
+    for (int i = 0; i < board->height; i++) {
+        for (int j = 0; j < board->width; j++) {
+            int target_y = i-amount_to_add;
+            if (board->state[i][j] != -1) {
+                if (target_y < 0) return 1; // garbage out of bounds, lose state    
+                board->state[target_y][j] = board->state[i][j];
+            } else {
+                if (target_y >= 0) {
+                    board->state[target_y][j] = board->state[i][j];
+                }
+            }
+        }
+    }
+
+    int gap_x = rand()%board->width;
+    int at_y = board->height-1;
+    while (amount_to_add > 0 && at_y >= 0) {
+        for (int i = 0; i < board->width; i++) {
+            if (i == gap_x) board->state[at_y][i] = -1;
+            else board->state[at_y][i] = 7;
+        }
+        at_y--;
+        amount_to_add--;
+    }
+    return 0;
 }
 // called every frame
 void update_garbage(tetris_garbage_manager *manager, int delta_time) {
@@ -274,6 +303,43 @@ void add_garbage(tetris_board *board, int amount) {
     manager->armed_garbage += manager->queue_amount[small_id];
     manager->queue_amount[small_id] = amount;
     manager->queue_timer[small_id] = manager->time_to_arm;
+}
+void send_garbage(tetris_board *board, int garbage_amount) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+
+    // 1. remove from armed garbage
+    int remove_armed_garbage_amount = garbage_amount;
+    if (manager->armed_garbage < garbage_amount) remove_armed_garbage_amount = manager->armed_garbage;
+    manager->armed_garbage -= remove_armed_garbage_amount;
+    garbage_amount -= remove_armed_garbage_amount;
+
+    // 2. remove from garbage in queue
+    while (garbage_amount > 0) {
+        int low_id = 0;
+        bool have_queue = false;
+        for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+            if (manager->queue_amount[i] != 0) {
+                have_queue = true;
+                if (
+                    manager->queue_amount[low_id] == 0 ||
+                    (manager->queue_timer[i] < manager->queue_timer[low_id] &&
+                    manager->queue_amount[i] != 0)
+                ) {
+                    low_id = i;
+                }
+            }
+        }
+        if (have_queue == false) break; // no more in queue
+        int rem_amount = garbage_amount;
+        if (manager->queue_amount[low_id] < garbage_amount) rem_amount = manager->queue_amount[low_id];
+        manager->queue_amount[low_id] -= rem_amount;
+        garbage_amount -= rem_amount;
+    }
+
+    // 3. send remainng to opponent
+    mvprintw(0, 0, "sent %d lines", garbage_amount);
+    refresh();
+    
 }
 void draw_garbage(tetris_garbage_manager *manager) {
     
@@ -382,15 +448,19 @@ void new_tetromino_reset(tetris_board *board) {
 }
 
 // will free the score report
-void handle_score_report(tetris_board *board, score_report *score_rep) {
+// returns 1 when game lost due to out of bounds garbage
+int handle_score_report(tetris_board *board, score_report *score_rep) {
     // add score
     board->counters->score += score_rep->score;
 
     // TODO: send garbage
-
+    send_garbage(board, score_rep->garbage);
 
     // trigger own garbage if no lines cleared
-    if (score_rep->lines_cleared == 0) trigger_garbage(board);
+    int ret = 0;
+    if (score_rep->lines_cleared == 0) {
+        ret = trigger_garbage(board);
+    }
 
     // draw messages at bottom of board
     WINDOW *win = board->info_manager->clear_win;
@@ -417,10 +487,12 @@ void handle_score_report(tetris_board *board, score_report *score_rep) {
     wrefresh(win);
 
     free_score_report(score_rep);
+    return ret;
 }
 
 // hard drops the active tetromino in <board>
-void hard_drop(tetris_board *board) {
+// returns 1 when lost due to out of bounds garbage
+int hard_drop(tetris_board *board) {
     while (can_move(board, board->active_tetromino, DIR_DOWN)) {
         move_tetromino(board, board->active_tetromino, DIR_DOWN);
         board->counters->score += 2; // score per line for hard drop
@@ -432,12 +504,13 @@ void hard_drop(tetris_board *board) {
         board->state[y][x] = board->active_tetromino->type;
     }
     free_pos(pos);
-    handle_score_report(board, update_clear_lines(board)); // update this before we take new piece, so it properly checks t-spins
+    int ret = handle_score_report(board, update_clear_lines(board)); // update this before we take new piece, so it properly checks t-spins
     free(board->active_tetromino);
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
     board->counters->hold_count = 0;
     board->highest_tetromino = calculate_highest_piece(board);
     new_tetromino_reset(board);
+    return ret;
 }
 
 // returns true if tetromino <test> (assumed to be an actively falling tetromino)
@@ -457,19 +530,22 @@ bool valid_pos(tetromino *test, tetris_board *board) {
 }
 
 // tries to move the active tetromino in <board> down
-void apply_gravity(tetris_board *board) {
+// returns 1 when game lost due to out of bounds garbage
+int apply_gravity(tetris_board *board) {
     board->counters->gravity_count++;
     if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
         board->counters->last_rotation = -1;
-        return;
+        return 0;
     }
     if (
         board->counters->lock_delay >= board->limits->lock_delay ||
         board->counters->lock_times >= board->limits->lock_times ||
         board->counters->gravity_count >= board->limits->gravity_count
     ) {
-        hard_drop(board);
+        int ret = hard_drop(board);
+        if (ret == 1) return 1;
     }
+    return 0;
 }
 
 // swaps active tetromino with hold tetromino (if exists)
@@ -576,7 +652,8 @@ int update_board(tetris_board_update *update) {
     }
     if (user_input == get_keyboard_button(GAME_HARDDROP)) {
         board->counters->last_rotation = -1;
-        hard_drop(board);
+        int ret = hard_drop(board);
+        if (ret == 1) return 1;
     }
 
     // advance lock_delay if on ground
@@ -588,7 +665,8 @@ int update_board(tetris_board_update *update) {
     counters->time_since_gravity += delta_time;
     while (counters->time_since_gravity > limits->time_since_gravity) {
         counters->time_since_gravity -= limits->time_since_gravity;
-        apply_gravity(board);
+        int ret = apply_gravity(board);
+        if (ret == 1) return ret;
     }
 
     // lose condition
