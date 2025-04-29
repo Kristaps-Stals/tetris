@@ -16,9 +16,9 @@ const int DIR_LEFT = 3;
 
 // normal directions {y, x}
 const int normal_dir[4][2] = {
-    {-1, 0}, // up
+    {1, 0}, // up
     {0, 1}, // right
-    {1, 0}, // down
+    {-1, 0}, // down
     {0, -1} // left
 };
 
@@ -39,12 +39,12 @@ tetromino *deepcpy_tetromino(tetromino *a) {
 
 // returns highest placed piece
 int calculate_highest_piece(tetris_board *board){
-    for (int i = 0; i < board->height; i++) {
+    for (int i = board->height-1; i >= 0; i--) {
         for (int j = 0; j < board->width; j++) {
             if (board->state[i][j] != -1) return i;
         }
     }
-    return board->height; // returns the floor as the highest piece
+    return 0; // returns the floor as the highest piece
 }
 
 // returns array of block positions for tetromino <t>
@@ -52,7 +52,7 @@ int **get_tetromino_positions(tetromino *t) {
     int **pos = malloc(4*sizeof(int*));
     for (int i = 0; i < 4; i++) {
         pos[i] = malloc(2*sizeof(int));
-        pos[i][0] = t->y+get_shapes(t->type, t->rotation, i, 0);
+        pos[i][0] = t->y-get_shapes(t->type, t->rotation, i, 0);
         pos[i][1] = t->x+get_shapes(t->type, t->rotation, i, 1);
     }
     return pos;
@@ -117,7 +117,7 @@ tetromino *construct_tetromino(tetromino_construct_info *info) {
     int piece_width = get_shape_spawn_width(ret->type);
     int center_2x = play_width; // center * 2
     ret->x = (center_2x-piece_width)/2;
-    ret->y = 0;
+    ret->y = 21;
     ret->rotation = 0;
     return ret;
 }
@@ -250,14 +250,14 @@ int trigger_garbage(tetris_board *board) {
     if (amount_to_add == 0) return 0;
 
     manager->armed_garbage -= amount_to_add;
-    for (int i = 0; i < board->height; i++) {
+    for (int i = board->height-1; i >= 0; i--) {
         for (int j = 0; j < board->width; j++) {
-            int target_y = i-amount_to_add;
+            int target_y = i+amount_to_add;
             if (board->state[i][j] != -1) {
-                if (target_y < 0) return 1; // garbage out of bounds, lose state    
+                if (target_y >= board->height) return 1; // garbage out of bounds, lose state    
                 board->state[target_y][j] = board->state[i][j];
             } else {
-                if (target_y >= 0) {
+                if (target_y < board->height) {
                     board->state[target_y][j] = board->state[i][j];
                 }
             }
@@ -265,13 +265,13 @@ int trigger_garbage(tetris_board *board) {
     }
 
     int gap_x = rand()%board->width;
-    int at_y = board->height-1;
-    while (amount_to_add > 0 && at_y >= 0) {
+    int at_y = 0;
+    while (amount_to_add > 0 && at_y < board->height) {
         for (int i = 0; i < board->width; i++) {
             if (i == gap_x) board->state[at_y][i] = -1;
             else board->state[at_y][i] = 7;
         }
-        at_y--;
+        at_y++;
         amount_to_add--;
     }
     return 0;
@@ -336,6 +336,8 @@ void send_garbage(tetris_board *board, int garbage_amount) {
         garbage_amount -= rem_amount;
     }
 
+    if (garbage_amount == 0) return;
+
     // 3. send remainng to opponent
     mvprintw(0, 0, "sent %d lines", garbage_amount);
     refresh();
@@ -376,12 +378,12 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     int w = settings->play_width;
 
     // play space
-    board->height = h;
-    board->width = w;
-    board->state = (int**)malloc(h*sizeof(int*));
-    for (int i = 0; i < h; i++) {
-        board->state[i] = malloc(w*sizeof(int));
-        for (int j = 0; j < w; j++) {
+    board->height = settings->play_height;
+    board->width = settings->play_width;
+    board->state = (int**)malloc(board->height*sizeof(int*));
+    for (int i = 0; i < board->height; i++) {
+        board->state[i] = malloc(board->width*sizeof(int));
+        for (int j = 0; j < board->width; j++) {
             board->state[i][j] = -1;
         }
     }
@@ -421,7 +423,7 @@ bool can_move(tetris_board *board, tetromino *t, int dir) {
     for (int i = 0; i < 4; i++) {
         int y = pos[i][0] + normal_dir[dir][0];
         int x = pos[i][1] + normal_dir[dir][1];
-        if (x < 0 || x >= board->width || y >= board->height || board->state[y][x] != -1) {
+        if (x < 0 || y < 0 || x >= board->width || y >= board->height || board->state[y][x] != -1) {
             free_pos(pos);
             return false;
         }
@@ -713,7 +715,7 @@ void draw_upcoming(tetris_board *board) {
     }
 
     // draw window title
-    int mid = (bag->hold_w-4)/2;
+    int mid = (bag->upcoming_w-4)/2;
     mvwprintw(bag->upcoming, 1, mid, "NEXT");
 
     // draw upcoming pieces
@@ -729,8 +731,8 @@ void draw_upcoming(tetris_board *board) {
         int base_x = (bag->upcoming_w-w*2)/2;
         int **pos = get_tetromino_positions(&t);
         for (int j = 0; j < 4; j++) {
-            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
-            mvwaddch(bag->upcoming, base_y+pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
+            mvwaddch(bag->upcoming, base_y-pos[j][0], base_x+pos[j][1]*2, ' ' | COLOR_PAIR(t.type+1));
+            mvwaddch(bag->upcoming, base_y-pos[j][0], base_x+pos[j][1]*2+1, ' ' | COLOR_PAIR(t.type+1));
         }
         free_pos(pos);
     }
@@ -768,8 +770,8 @@ void draw_hold(tetris_board *board) {
         t.y = 0;
         int **pos = get_tetromino_positions(&t);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(bag->hold, base_y+pos[i][0], base_x+pos[i][1]*2, ' ' | COLOR_PAIR(tetromino_id+1));
-            mvwaddch(bag->hold, base_y+pos[i][0], base_x+pos[i][1]*2+1, ' ' | COLOR_PAIR(tetromino_id+1));
+            mvwaddch(bag->hold, base_y-pos[i][0], base_x+pos[i][1]*2, ' ' | COLOR_PAIR(tetromino_id+1));
+            mvwaddch(bag->hold, base_y-pos[i][0], base_x+pos[i][1]*2+1, ' ' | COLOR_PAIR(tetromino_id+1));
         }
         free_pos(pos);
     }
@@ -800,23 +802,24 @@ void draw_tetris_board(tetris_board *board) {
     for (int i = 0; i < h; i++) {
         for (int j = 0; j < w; j++) {
             if (board->state[i][j] == -1) continue;
-            if (board->state[i][j] == 3) wattron(board->win, A_BOLD);
-            mvwaddch(board->win, i+1, 2*j+1, ' ' | COLOR_PAIR(board->state[i][j]+1));
-            mvwaddch(board->win, i+1, 2*j+2, ' ' | COLOR_PAIR(board->state[i][j]+1));
-            if (board->state[i][j] == 3) wattroff(board->win, A_BOLD);
+            int draw_y = board->height-i;
+            int draw_x1 = 2*j+1;
+            int draw_x2 = 2*j+2;
+            mvwaddch(board->win, draw_y, draw_x1, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            mvwaddch(board->win, draw_y, draw_x2, ' ' | COLOR_PAIR(board->state[i][j]+1));
         }
     }
 
     if (board->active_tetromino != NULL) {
         // draw warning
-        if (board->highest_tetromino <= 5) {
+        if (board->highest_tetromino >= 16) {
             tetromino *warning = take_from_bag(board, board->bag_manager, true);
             int **pos = get_tetromino_positions(warning);
             int phase = (board->counters->total_time_elapsed/(1000*500))%2; // phase flips 0/1 every 500ms
             for (int i = 0; i < 4; i++) {
                 if (phase == 1) {
-                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
-                    mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
                 }
             }
             free(warning);
@@ -828,8 +831,8 @@ void draw_tetris_board(tetris_board *board) {
         while (move_tetromino(board, prediction, DIR_DOWN));
         int **pos = get_tetromino_positions(prediction);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, '@');
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, '@');
+            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, '@');
+            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, '@');
         }
         free_pos(pos);
         free(prediction);
@@ -837,8 +840,8 @@ void draw_tetris_board(tetris_board *board) {
         // draw active tetromino
         pos = get_tetromino_positions(board->active_tetromino);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
-            mvwaddch(board->win, pos[i][0]+1, 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
         }
         free_pos(pos);
     }
