@@ -48,6 +48,15 @@ typedef struct tetris_info_manager {
     int clear_x, clear_y, clear_w, clear_h;
 } tetris_info_manager;
 
+typedef struct tetris_garbage_manager {
+    WINDOW *win;
+    int h, w, y, x; // window dimensions
+    int armed_garbage; // how much garbage is ready to appear upon placing a tetromino
+    int *queue_amount, *queue_timer; // tracks how long until garbage is armed
+    int max_garbage_in_queue; // max length of queue
+    int time_to_arm; // time for garbage to go from queue to armed
+} tetris_garbage_manager;
+
 // contains all info about a board
 typedef struct tetris_board {
     WINDOW *win;
@@ -62,6 +71,7 @@ typedef struct tetris_board {
     tetris_bag_manager *bag_manager;
     tetris_difficulty_manager *difficulty_manager;
     tetris_info_manager *info_manager;
+    tetris_garbage_manager *garbage_manager;
 } tetris_board;
 
 // settings, which are used to construct a tetris board

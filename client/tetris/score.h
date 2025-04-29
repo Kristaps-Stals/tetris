@@ -3,6 +3,7 @@
 typedef struct score_report {
     long long score;
     long long garbage;
+    int lines_cleared;
     char* message;
 } score_report;
 

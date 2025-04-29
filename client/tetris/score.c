@@ -182,6 +182,8 @@ score_report *update_clear_lines(void* board_) {
     int clear_type = get_line_clear_type(board); // do before actually clearing
 
     int lines_cleared = check_line_clear(board); // actually clear
+    score_rep->lines_cleared = lines_cleared;
+    
     int current_level = board->difficulty_manager->current_level+1; // 0-indexed    
 
     scoring_info s_info = clear_types[clear_type][lines_cleared];

@@ -22,6 +22,12 @@ const int normal_dir[4][2] = {
     {0, -1} // left
 };
 
+void delete_window(WINDOW *win) {
+    werase(win);
+    wrefresh(win);
+    delwin(win);
+}
+
 tetromino *deepcpy_tetromino(tetromino *a) {
     tetromino *b = malloc(sizeof(tetromino));
     b->rotation = a->rotation;
@@ -88,9 +94,9 @@ tetris_bag_manager *construct_bag_manager(tetris_board* board, int seed) {
     manager->held_tetromino = -1;
 
     // make hold window
-    manager->hold_w = 12;
+    manager->hold_w = 8;
     manager->hold_h = 6;
-    manager->hold_x = board->win_x-manager->hold_w;
+    manager->hold_x = board->win_x-manager->hold_w-2;
     manager->hold_y = board->win_y;
     manager->hold = newwin(manager->hold_h, manager->hold_w, manager->hold_y, manager->hold_x);
 
@@ -204,6 +210,100 @@ void free_info_manager(tetris_info_manager *info_manager) {
     free(info_manager);
 }
 
+tetris_garbage_manager *construct_tetris_garbage_manager(tetris_board *board) {
+    tetris_garbage_manager *manager = malloc(sizeof(tetris_garbage_manager));
+
+    manager->h = board->win_y+board->win_h-1; // extends to the top of the screen, may be a problem if something is above board
+    manager->w = 1;
+    manager->y = 0;
+    manager->x = board->win_x-1;
+
+    manager->win = newwin(
+        manager->h,
+        manager->w,
+        manager->y,
+        manager->x
+    );
+
+    manager->armed_garbage = 0;
+    manager->max_garbage_in_queue = 20;
+    manager->time_to_arm = 500*1e3; // 500 ms to arm
+    manager->queue_amount = malloc(manager->max_garbage_in_queue*sizeof(int));
+    manager->queue_timer = malloc(manager->max_garbage_in_queue*sizeof(int));
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        manager->queue_amount[i] = 0;
+        manager->queue_timer[i] = 0;
+    }
+    return manager;
+}
+void free_garbage_manager(tetris_garbage_manager *manager){
+    delete_window(manager->win);
+    free(manager->queue_amount);
+    free(manager->queue_timer);
+    free(manager);
+}
+// called upon dropping a piece and not clearing a line
+void trigger_garbage(tetris_board *board) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+    // TODO add garbage
+}
+// called every frame
+void update_garbage(tetris_garbage_manager *manager, int delta_time) {
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        if (manager->queue_amount[i] == 0) continue;
+        manager->queue_timer[i] -= delta_time;
+        if (manager->queue_timer[i] <= 0) {
+            manager->armed_garbage += manager->queue_amount[i];
+            manager->queue_amount[i] = 0;
+        }
+    }
+}
+// called when need to add new garbage
+void add_garbage(tetris_board *board, int amount) {
+    tetris_garbage_manager *manager = board->garbage_manager;
+    int small_id = 0; // id of smallest time left
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        if (manager->queue_amount[i] == 0) {
+            manager->queue_amount[i] = amount;
+            manager->queue_timer[i] = manager->time_to_arm;
+            return;
+        }
+        if (manager->queue_timer[i] < manager->queue_timer[small_id]) small_id = i;
+    }
+    // if no empty spots in queue, force smallest time out
+    manager->armed_garbage += manager->queue_amount[small_id];
+    manager->queue_amount[small_id] = amount;
+    manager->queue_timer[small_id] = manager->time_to_arm;
+}
+void draw_garbage(tetris_garbage_manager *manager) {
+    
+    for (int i = 0; i < manager->h; i++) {
+        mvwaddch(manager->win, i, 0, ' ');
+    }
+
+    int armed = manager->armed_garbage;
+    int not_armed = 0;
+    for (int i = 0; i < manager->max_garbage_in_queue; i++) {
+        not_armed += manager->queue_amount[i];
+    }
+
+    int at_y = manager->h-1;
+    while (armed > 0) {
+        if (at_y < 0) break;
+        armed--;
+        mvwaddch(manager->win, at_y, 0, ' ' | COLOR_PAIR(11));
+        at_y--;
+    }
+    while (not_armed > 0) {
+        if (at_y < 0) break;
+        not_armed--;
+        mvwaddch(manager->win, at_y, 0, ' ' | COLOR_PAIR(12));
+        at_y--;
+    }
+    
+    wrefresh(manager->win);
+}
+
 tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     tetris_board *board = malloc(sizeof(tetris_board));
     int h = settings->play_height;
@@ -238,6 +338,9 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     // tetrominos
     board->bag_manager = construct_bag_manager(board, time(NULL));
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
+
+    // garbage
+    board->garbage_manager = construct_tetris_garbage_manager(board);
 
     // others
     board->highest_tetromino = calculate_highest_piece(board);
@@ -285,6 +388,9 @@ void handle_score_report(tetris_board *board, score_report *score_rep) {
 
     // TODO: send garbage
 
+
+    // trigger own garbage if no lines cleared
+    if (score_rep->lines_cleared == 0) trigger_garbage(board);
 
     // draw messages at bottom of board
     WINDOW *win = board->info_manager->clear_win;
@@ -433,6 +539,7 @@ int update_board(tetris_board_update *update) {
     counters->total_time_elapsed += delta_time;
     update_tetris_difficulty(board);
 
+    if (user_input == 'p') add_garbage(board, 1);
     // user input
     if (user_input == get_keyboard_button(GAME_ROTATE_RIGHT)){
         if (rotate_tetromino(board, DIR_RIGHT)) {
@@ -489,8 +596,10 @@ int update_board(tetris_board_update *update) {
         return 1;
     }
 
+    update_garbage(board->garbage_manager, update->delta_time);
     draw_tetris_board(board);
     update_info_manager(board);
+    
     return 0;
 }
 
@@ -660,24 +769,19 @@ void draw_tetris_board(tetris_board *board) {
     // draw other related windows
     draw_hold(board);
     draw_upcoming(board);
+    draw_garbage(board->garbage_manager);
 }
 
 void free_bag_manager(tetris_bag_manager *bag) {
-    werase(bag->upcoming);
-    wrefresh(bag->upcoming);
-    delwin(bag->upcoming);
-    werase(bag->hold);
-    wrefresh(bag->hold);
-    delwin(bag->hold);
+    delete_window(bag->upcoming);
+    delete_window(bag->hold);
     free(bag->now);
     free(bag->next);
     free(bag);
 }
 
 void deconstruct_tetris_board(tetris_board *board) {
-    werase(board->win);
-    wrefresh(board->win);
-    delwin(board->win);
+    delete_window(board->win);
     for(int i = 0; i < board->height; i++) {
         free(board->state[i]);
     }
@@ -688,5 +792,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free_bag_manager(board->bag_manager);
     free_tetris_difficulty_manager(board->difficulty_manager);
     free_info_manager(board->info_manager);
+    free_garbage_manager(board->garbage_manager);
     free(board);
 }
