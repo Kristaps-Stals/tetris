@@ -374,8 +374,6 @@ void draw_garbage(tetris_garbage_manager *manager) {
 
 tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     tetris_board *board = malloc(sizeof(tetris_board));
-    int h = settings->play_height;
-    int w = settings->play_width;
 
     // play space
     board->height = settings->play_height;
@@ -387,6 +385,9 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
             board->state[i][j] = -1;
         }
     }
+
+    int h = settings->window_height;
+    int w = settings->window_width;
 
     // main window
     board->win_h = h+2;
@@ -802,11 +803,13 @@ void draw_tetris_board(tetris_board *board) {
     for (int i = 0; i < h; i++) {
         for (int j = 0; j < w; j++) {
             if (board->state[i][j] == -1) continue;
-            int draw_y = board->height-i;
+            int draw_y = board->win_h-2-i;
             int draw_x1 = 2*j+1;
             int draw_x2 = 2*j+2;
-            mvwaddch(board->win, draw_y, draw_x1, ' ' | COLOR_PAIR(board->state[i][j]+1));
-            mvwaddch(board->win, draw_y, draw_x2, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            if (draw_y >= 0){
+                mvwaddch(board->win, draw_y, draw_x1, ' ' | COLOR_PAIR(board->state[i][j]+1));
+                mvwaddch(board->win, draw_y, draw_x2, ' ' | COLOR_PAIR(board->state[i][j]+1));
+            }
         }
     }
 
@@ -818,8 +821,8 @@ void draw_tetris_board(tetris_board *board) {
             int phase = (board->counters->total_time_elapsed/(1000*500))%2; // phase flips 0/1 every 500ms
             for (int i = 0; i < 4; i++) {
                 if (phase == 1) {
-                    mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
-                    mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, 'X' | COLOR_PAIR(10));
+                    mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, 'X' | COLOR_PAIR(10));
                 }
             }
             free(warning);
@@ -831,8 +834,8 @@ void draw_tetris_board(tetris_board *board) {
         while (move_tetromino(board, prediction, DIR_DOWN));
         int **pos = get_tetromino_positions(prediction);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, '@');
-            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, '@');
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, '@');
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, '@');
         }
         free_pos(pos);
         free(prediction);
@@ -840,8 +843,8 @@ void draw_tetris_board(tetris_board *board) {
         // draw active tetromino
         pos = get_tetromino_positions(board->active_tetromino);
         for (int i = 0; i < 4; i++) {
-            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
-            mvwaddch(board->win, board->height-pos[i][0], 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+1, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
+            mvwaddch(board->win, board->win_h-2-pos[i][0], 2*pos[i][1]+2, ' ' | COLOR_PAIR(board->active_tetromino->type+1));
         }
         free_pos(pos);
     }

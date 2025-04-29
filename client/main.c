@@ -107,8 +107,10 @@ void gameloop(const char *host, int port) {
                     // setup tetris
                     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
                     board_settings->bag_seed = 0;
-                    board_settings->play_height = 22;
+                    board_settings->play_height = 40;
                     board_settings->play_width = 10;
+                    board_settings->window_height = 22;
+                    board_settings->window_width = 10;
                     board = construct_tetris_board(board_settings);
                     free(board_settings);
                 }

@@ -78,6 +78,8 @@ typedef struct tetris_board {
 typedef struct tetris_board_settings {
     int play_width;
     int play_height;
+    int window_width;
+    int window_height;
     int bag_seed;
 } tetris_board_settings;
 
