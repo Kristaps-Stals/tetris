@@ -4,7 +4,13 @@
 enum {
     TEXT_ID = 0,
     BUTTON_ID = 1,
-    KEYBIND_SELECT_ID = 2
+    KEYBIND_SELECT_ID = 2,
+    WRITE_ELEMENT_ID = 3
+};
+
+enum {
+    START_EDITING = 5000,
+    STOP_EDITING = 5001
 };
 
 typedef struct size_info {
@@ -33,6 +39,13 @@ typedef struct textbox_keybind_select {
     textbox_neighbours *neighbour; // which element to go to if active element
 } textbox_keybind_select;
 
+typedef struct textbox_write {
+    char* text;
+    int max_len, curr_len, write_id;
+    bool is_editing;
+    textbox_neighbours *neighbour; // which element to go to if active element
+} textbox_write;
+
 typedef struct textbox_element {
     int type;
     void *info;
@@ -57,6 +70,8 @@ textbox_text *make_text(char *text);
 textbox_button *make_button(char *text, int trigger_val, textbox_neighbours *neighbours);
 
 textbox_keybind_select *make_keybind_select(char *text_editing, int keybind_id, textbox_neighbours *neighbours);
+
+textbox_write *make_write_elem(char* default_text, int max_len, int write_id, textbox_neighbours *neighbours);
 
 textbox_element *make_element(int type, size_info *pos, void *element_info);
 
