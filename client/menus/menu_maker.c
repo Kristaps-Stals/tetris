@@ -5,6 +5,9 @@
 #include "string.h"
 #include "../../shared/kstring.h"
 #include "keyboard_manager.h"
+#include "../net/net.h" 
+#include <unistd.h>    
+#include <fcntl.h>
 
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
@@ -12,6 +15,9 @@ menu_manager *make_menu_manager() {
     manager->stack = malloc((manager->max_stack+1)*sizeof(textbox*));
     manager->top = 0;
     manager->is_editing = false;
+    manager->server_socket = -1; 
+    for (int i = 0; i < 8; i++)
+      strcpy(manager->slot_names[i], "(empty)");
     manager->stack[0] = make_main_menu();
     return manager;
 }
@@ -229,6 +235,36 @@ textbox *make_join_menu() {
     return make_textbox(pos, elems, ELEM_CNT, 0, JOIN_LOBBY_MENU_ID);
 }
 
+textbox *make_lobby_menu(menu_manager *manager) {
+    int w = 30, h = 12;
+    int x = (COLS - w) / 2;
+    int y = (LINES - h) / 2;
+    size_info *pos = make_size_info(h, w, y, x);
+
+    int SLOTS = 8;
+    int ELEM_CNT = SLOTS + 1;  // +1 for Back button
+    textbox_element **elems = malloc(ELEM_CNT * sizeof(*elems));
+
+    for (int i = 0; i < SLOTS; i++) {
+        char label[32];
+        if (i < 2)
+            snprintf(label, sizeof(label), "Player %d: %s", i+1, manager->slot_names[i]);
+        else
+            snprintf(label, sizeof(label), "Spectator %d: %s", i-1, manager->slot_names[i]);
+        size_info *p = make_size_info(1, strlen(label), 1 + i, 2);
+        textbox_text *t = make_text(label);
+        elems[i] = make_element(TEXT_ID, p, t);
+    }
+
+    // Back button
+    size_info *pb = make_size_info(1, 6, h-2, w-1-6);
+    textbox_neighbours *nb = make_neighbours(-1, -1, -1, -1);
+    textbox_button *bb = make_button("Back", CLOSE_MENU, nb);
+    elems[SLOTS] = make_element(BUTTON_ID, pb, bb);
+
+    return make_textbox(pos, elems, ELEM_CNT, SLOTS, LOBBY_MENU_ID);
+}
+
 // tries to open <new_menu>, returns true on success, false on failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
     if (manager->top == manager->max_stack) return false;
@@ -305,15 +341,35 @@ char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) 
 
 void attempt_join_lobby(menu_manager *manager) {
     int ip_len, port_len;
-    char* ip_text = fetch_text_from_element(manager, WRITE_ID_JOIN_IP, &ip_len);
-    char* port_text = fetch_text_from_element(manager, WRITE_ID_JOIN_PORT, &port_len);
-    if (ip_text != NULL && port_text != NULL) {
-        // TODO: attempt to join
-        // func(ip_text, ip_len, port_text, port_len);
+    char *ip_text   = fetch_text_from_element(manager, WRITE_ID_JOIN_IP,   &ip_len);
+    char *port_text = fetch_text_from_element(manager, WRITE_ID_JOIN_PORT, &port_len);
+
+    if (ip_text && port_text) {
+        int port = atoi(port_text);
+        int sockfd = connect_to_server(ip_text, port);
+        if (sockfd < 0) {
+            mvprintw(0, 0, "Failed to connect to %s:%d", ip_text, port);
+            refresh();
+            sleep(2);
+        } else {
+            // MAKE SOCKET NON-BLOCKING IMMEDIATELY HERE
+            fcntl(sockfd, F_SETFL, O_NONBLOCK);
+            
+            // Store socket immediately
+            manager->server_socket = sockfd;
+            
+            // Send MSG_HELLO IMMEDIATELY HERE
+            send_hello(sockfd, "TetrisClient 1.0", "PlayerOne");
+            
+            // Open lobby menu
+            open_menu(manager, make_lobby_menu(manager));
+        }
     }
-    if (ip_text != NULL) free(ip_text);
-    if (port_text != NULL) free(port_text);
+
+    if (ip_text)   free(ip_text);
+    if (port_text) free(port_text);
 }
+
 
 // returns signals for main gameloop
 // returns 1 to start game
@@ -321,7 +377,6 @@ int manage_menus(menu_manager *manager, int user_input) {
     int update_result = update_menus(manager, user_input);
 
     int ret = 0;
-    // what each button trigger val does
     switch(update_result) {
         case START_GAME:
             ret = 1;

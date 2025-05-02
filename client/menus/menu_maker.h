@@ -19,7 +19,7 @@ enum {
     ENDSCREEN_MENU_ID = 2,
     KEYBINDINGS_MENU_ID = 3,
     JOIN_LOBBY_MENU_ID = 4,
-    LOBBY_MENU_ID = 5
+    LOBBY_MENU_ID = 5,
 };
 
 enum {
@@ -31,6 +31,8 @@ typedef struct menu_manager {
     textbox **stack;
     int top, max_stack;
     bool is_editing;
+    int       server_socket;
+    char      slot_names[8][32];
 } menu_manager;
 
 bool open_menu(menu_manager *manager, textbox *new_menu);
@@ -41,3 +43,4 @@ textbox *make_settings_menu();
 textbox *make_endscreen(tetris_board *board);
 int update_menus(menu_manager *manager, int user_input);
 int manage_menus(menu_manager *manager, int user_input);
+textbox *make_lobby_menu(menu_manager *manager);

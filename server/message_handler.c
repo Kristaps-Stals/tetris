@@ -98,6 +98,13 @@ void message_handler_handle_hello(int client_fd) {
         write(client_fd, entry, sizeof(entry));
     }
 
+    printf("Sent MSG_WELCOME: player_id=%d, name=%s, length=%d\n", welcome.player_id, welcome.player_name, welcome.length);
+    for (int i = 0; i < existing; i++) {
+        const client_t *c = client_manager_get(i);
+        printf("  entry %d: id=%d, ready=%d, name=%s\n", i, c->player_id, c->ready, c->name);
+    }
+    fflush(stdout);
+
     // 3) register newcomer
     client_manager_add(client_fd, id, hello.player_name);
 }
