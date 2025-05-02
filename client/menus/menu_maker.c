@@ -282,13 +282,31 @@ bool open_menu(menu_manager *manager, textbox *new_menu) {
 
 // pops the top textbox in menu manager
 void pop_menu_stack(menu_manager *manager) {
-    textbox **stack = manager->stack;
+    if (manager->server_socket >= 0) {
+        // send MSG_LEAVE before disconnecting
+        char reason[] = "Left the lobby";
+        // this builds the length+type+source header for you
+        send_message(
+          manager->server_socket,
+          MSG_LEAVE,
+          PLAYER_ID_BROADCAST,       // or your own ID if you have it
+          reason,
+          sizeof(reason)             // strlen(reason) + 1
+        );
+    
+        
+        close(manager->server_socket);
+        manager->server_socket = -1;
+    }
 
+    // continue popping menu
+    textbox **stack = manager->stack;
     werase(stack[manager->top]->win);
     wrefresh(stack[manager->top]->win);
     free_textbox(stack[manager->top]);
     manager->top--;
 }
+
 
 // returns any positive trigger vals
 int update_menus(menu_manager *manager, int user_input) {

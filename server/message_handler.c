@@ -7,10 +7,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+// #include "../client/net/net.h" 
+// TODO: MOVE TO SHARED. you can implement building payloads not with write, but with send_message() from net.h
 
 static uint8_t next_id = 1;
 static struct { int fd; uint8_t player_id; } fd_map[MAX_CLIENTS];
 static int map_count;
+
+static uint8_t find_free_id(void) {
+    for (uint8_t cand = 1; cand <= MAX_CLIENTS; cand++) {
+        bool used = false;
+        for (int i = 0; i < map_count; i++) {
+            if (fd_map[i].player_id == cand) {
+                used = true;
+                break;
+            }
+        }
+        if (!used) return cand;
+    }
+    return 0;  // no slots free
+}
 
 void message_handler_init(void) {
     next_id   = 1;
@@ -51,8 +67,26 @@ void message_handler_handle_hello(int client_fd) {
         return;
     }
 
-    uint8_t id = next_id++;
-    if (id == 0) id = next_id = 1;
+    // pick the first free slot (1..MAX_CLIENTS)
+    uint8_t id = find_free_id();
+    if (id == 0) {
+        const char *reason = "Server full";
+        uint16_t payload_len = strlen(reason) + 1; // include '\0'
+        uint16_t length = 1 + 1 + payload_len;    // type + source + payload
+
+        uint8_t hdr[4] = {
+            (uint8_t)(length >> 8),
+            (uint8_t)(length & 0xFF),
+            MSG_DISCONNECT,
+            PLAYER_ID_BROADCAST
+        };
+        // send the disconnect
+        write(client_fd, hdr, sizeof hdr);
+        write(client_fd, reason, payload_len);
+
+        close(client_fd);
+        return;
+    }
 
     // store mapping
     fd_map[map_count].fd         = client_fd;

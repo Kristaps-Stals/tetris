@@ -37,16 +37,33 @@ void client_manager_add(int sockfd, uint8_t player_id, const char *name) {
 }
 
 void client_manager_remove(int sockfd) {
+    uint8_t player_id = message_handler_lookup_id(sockfd);
+
+    // Send MSG_LEAVE to all clients before removing
+    char reason[] = "Disconnected";
+    uint16_t reason_len = strlen(reason) + 1; // including null terminator
+
+    uint16_t payload_len = reason_len;
+    uint8_t hdr[4] = {
+        (uint8_t)(payload_len >> 8),
+        (uint8_t)(payload_len & 0xFF),
+        MSG_LEAVE,
+        player_id
+    };
+
+    client_manager_broadcast(hdr, 4, (uint8_t*)reason, reason_len);
+
+    // Remove the client
     for (int i = 0; i < count; i++) {
         if (clients[i].sockfd == sockfd) {
             close(sockfd);
-            // also drop mapping
             message_handler_remove_client(sockfd);
             clients[i] = clients[--count];
             return;
         }
     }
 }
+
 
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
                               const uint8_t *payload, int payload_len) {

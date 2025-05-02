@@ -127,10 +127,16 @@ void gameloop(const char *host, int port) {
                             lobby_updated = true;
                             break;
                         }
-                        case MSG_DISCONNECT:
+                        case MSG_LEAVE: {
+                            strcpy(mgr->slot_names[src - 1], "(empty)");
+                            lobby_updated = true;
+                            break;
+                        }
+                        case MSG_DISCONNECT: {
                             strcpy(mgr->slot_names[src-1], "(empty)");
                             lobby_updated = true;
                             break;
+                        }
                         default:
                             break;
                     }
