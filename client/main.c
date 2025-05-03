@@ -116,13 +116,10 @@ void gameloop(const char *host, int port) {
                         }
                         case MSG_SET_READY: {
                             bool ready = buf[0];
-                            // Update UI here: Update your manager->slot_names or add a separate readiness array
                             mgr->slot_ready[src - 1] = ready;
                             lobby_updated = true;
                             break;
                         }
-                        
-
                         default:
                             break;
                     }

@@ -244,7 +244,7 @@ textbox *make_lobby_menu(menu_manager *manager) {
     size_info *pos = make_size_info(h, w, y, x);
 
     int SLOTS = 8;
-    int ELEM_CNT = SLOTS + 1;  // +1 for Back button
+    int ELEM_CNT = SLOTS + 2;  // +1 for Back button, +1 for Ready button
     textbox_element **elems = malloc(ELEM_CNT * sizeof(*elems));
 
     for (int i = 0; i < SLOTS; i++) {
@@ -257,21 +257,22 @@ textbox *make_lobby_menu(menu_manager *manager) {
         textbox_text *t = make_text(label);
         elems[i] = make_element(TEXT_ID, p, t);
     }
-    
 
-    // Back button
+    // Back button (right of Ready)
     size_info *pb = make_size_info(1, 6, h-2, w-1-6);
-    textbox_neighbours *nb = make_neighbours(-1, -1, -1, -1);
+    // left: Ready button, right: Ready button (wrap), up/down: itself
+    textbox_neighbours *nb = make_neighbours(SLOTS+1, SLOTS+1, SLOTS, SLOTS+1);
     textbox_button *bb = make_button("Back", CLOSE_MENU, nb);
     elems[SLOTS] = make_element(BUTTON_ID, pb, bb);
 
+    // Ready button (left of Back)
     size_info *pr = make_size_info(1, 6, h-2, 2);
-    textbox_neighbours *nr = make_neighbours(-1, -1, -1, -1);
+    // left: Back button, right: Back button (wrap), up/down: itself
+    textbox_neighbours *nr = make_neighbours(SLOTS, SLOTS, SLOTS+1, SLOTS);
     textbox_button *br = make_button("Ready", TOGGLE_READY, nr);
-    elems[ELEM_CNT++] = make_element(BUTTON_ID, pr, br);
+    elems[SLOTS+1] = make_element(BUTTON_ID, pr, br);
 
-
-    return make_textbox(pos, elems, ELEM_CNT, SLOTS, LOBBY_MENU_ID);
+    return make_textbox(pos, elems, ELEM_CNT, SLOTS+1, LOBBY_MENU_ID);
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
