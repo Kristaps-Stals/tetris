@@ -1,4 +1,5 @@
 #pragma once
+#include "../tetris/board.h"
 #include "textbox.h"
 
 enum {

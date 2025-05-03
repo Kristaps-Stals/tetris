@@ -6,6 +6,9 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <../shared/protocol.h>
+#include <fcntl.h>
+
+char *copy_text(const char *src);
 
 int connect_to_server(const char *ip, int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -68,5 +71,67 @@ int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_p
     }
     *out_payload_size = payload_len;
     return 0;
+}
+
+int parse_connection_args(int argc, char **argv, const char **host, int *port) {
+    *host = "127.0.0.1";
+    *port = 0;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
+        switch (opt) {
+            case 'p':
+                *port = atoi(optarg);
+                break;
+            case 'h':
+                *host = optarg;
+                break;
+            default:
+                fprintf(stderr, "Usage: %s -p <port> [-h <host>]\n", argv[0]);
+                return 0;
+        }
+    }
+    return 1;
+}
+
+// Helper to fetch text from a textbox write element (moved from menu_maker)
+char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) {
+    textbox **stack = manager->stack;
+    int top = manager->top;
+    for (int i = 0; i < stack[top]->element_count; i++) {
+        if (stack[top]->elements[i]->type == WRITE_ELEMENT_ID) {
+            textbox_write *info = stack[top]->elements[i]->info;
+            if (info->write_id != write_id || info->text == NULL) continue;
+            *length = info->curr_len;
+            return copy_text(info->text);
+        }
+    }
+    *length = 0;
+    return NULL;
+}
+
+// Moved from menu_maker.c
+void attempt_join_lobby(menu_manager *manager) {
+    int ip_len, port_len;
+    char *ip_text   = fetch_text_from_element(manager, WRITE_ID_JOIN_IP,   &ip_len);
+    char *port_text = fetch_text_from_element(manager, WRITE_ID_JOIN_PORT, &port_len);
+
+    if (ip_text && port_text) {
+        int port = atoi(port_text);
+        int sockfd = connect_to_server(ip_text, port);
+        if (sockfd < 0) {
+            mvprintw(0, 0, "Failed to connect to %s:%d", ip_text, port);
+            refresh();
+            sleep(2);
+        } else {
+            fcntl(sockfd, F_SETFL, O_NONBLOCK);
+            manager->server_socket = sockfd;
+            send_hello(sockfd, "TetrisClient 1.0", "PlayerOne");
+            open_menu(manager, make_lobby_menu(manager));
+        }
+    }
+
+    if (ip_text)   free(ip_text);
+    if (port_text) free(port_text);
 }
 

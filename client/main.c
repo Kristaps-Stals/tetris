@@ -33,29 +33,6 @@ ll get_delta_micro_s(struct timespec *now, struct timespec *bef) {
     return (ll)(time_ll(now)-time_ll(bef))/1e3;
 }
 
-int parse_connection_args(int argc, char **argv, const char **host, int *port) { // todo: move to net?
-    *host = "127.0.0.1";
-    *port = 0;
-
-    int opt;
-    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
-        switch (opt) {
-            case 'p':
-                *port = atoi(optarg);
-                break;
-            case 'h':
-                *host = optarg;
-                break;
-            default:
-                fprintf(stderr, "Usage: %s -p <port> [-h <host>]\n", argv[0]);
-                return 0;
-        }
-    }
-
-    // if no port, just run singe player :)
-    return 1;
-}
-
 void gameloop(const char *host, int port) {
     (void)host; // unused
     (void)port; // unused
