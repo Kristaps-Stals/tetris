@@ -16,8 +16,10 @@ menu_manager *make_menu_manager() {
     manager->top = 0;
     manager->is_editing = false;
     manager->server_socket = -1; 
-    for (int i = 0; i < 8; i++)
-      strcpy(manager->slot_names[i], "(empty)");
+    for (int i = 0; i < 8; i++) {
+        manager->slot_ready[i] = false;
+        strcpy(manager->slot_names[i], "(empty)");
+    }
     manager->stack[0] = make_main_menu();
     return manager;
 }
@@ -246,21 +248,28 @@ textbox *make_lobby_menu(menu_manager *manager) {
     textbox_element **elems = malloc(ELEM_CNT * sizeof(*elems));
 
     for (int i = 0; i < SLOTS; i++) {
-        char label[32];
+        char label[40];
         if (i < 2)
-            snprintf(label, sizeof(label), "Player %d: %s", i+1, manager->slot_names[i]);
+            snprintf(label, sizeof(label), "Player %d: %s [%s]", i+1, manager->slot_names[i], manager->slot_ready[i] ? "READY" : "WAIT");
         else
             snprintf(label, sizeof(label), "Spectator %d: %s", i-1, manager->slot_names[i]);
         size_info *p = make_size_info(1, strlen(label), 1 + i, 2);
         textbox_text *t = make_text(label);
         elems[i] = make_element(TEXT_ID, p, t);
     }
+    
 
     // Back button
     size_info *pb = make_size_info(1, 6, h-2, w-1-6);
     textbox_neighbours *nb = make_neighbours(-1, -1, -1, -1);
     textbox_button *bb = make_button("Back", CLOSE_MENU, nb);
     elems[SLOTS] = make_element(BUTTON_ID, pb, bb);
+
+    size_info *pr = make_size_info(1, 6, h-2, 2);
+    textbox_neighbours *nr = make_neighbours(-1, -1, -1, -1);
+    textbox_button *br = make_button("Ready", TOGGLE_READY, nr);
+    elems[ELEM_CNT++] = make_element(BUTTON_ID, pr, br);
+
 
     return make_textbox(pos, elems, ELEM_CNT, SLOTS, LOBBY_MENU_ID);
 }
@@ -357,6 +366,14 @@ char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) 
     return NULL;
 }
 
+void toggle_ready_state(menu_manager *manager) {
+    static bool ready = false;
+    ready = !ready;
+
+    uint8_t flag = ready ? 1 : 0;
+    send_message(manager->server_socket, MSG_SET_READY, PLAYER_ID_BROADCAST, &flag, 1);
+}
+
 void attempt_join_lobby(menu_manager *manager) {
     int ip_len, port_len;
     char *ip_text   = fetch_text_from_element(manager, WRITE_ID_JOIN_IP,   &ip_len);
@@ -420,6 +437,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case ATTEMPT_JOIN:
             attempt_join_lobby(manager);
+            break;
+        case TOGGLE_READY:
+            toggle_ready_state(manager);
             break;
     }
     return ret;

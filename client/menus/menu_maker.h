@@ -10,7 +10,8 @@ enum {
     DEFAULT_KEYBINDINGS = 5,
     CLOSE_KEYBINDINGS = 6,
     OPEN_JOIN = 7,
-    ATTEMPT_JOIN = 8
+    ATTEMPT_JOIN = 8,
+    TOGGLE_READY = 9
 };
 
 enum {
@@ -33,6 +34,8 @@ typedef struct menu_manager {
     bool is_editing;
     int       server_socket;
     char      slot_names[8][32];
+    bool      slot_ready[8]; // new field to track readiness
+
 } menu_manager;
 
 bool open_menu(menu_manager *manager, textbox *new_menu);
