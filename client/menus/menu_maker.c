@@ -246,33 +246,27 @@ textbox *make_lobby_menu() {
     size_info *pos = make_size_info(h, w, y, x);
 
     int name_textbox_cnt = 10;
-    int ELEM_CNT = name_textbox_cnt+4;
+    int ELEM_CNT = name_textbox_cnt+5;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
-    int max_name_len = 15;
-    char* p = "";
+    int max_name_len = 30;
+    char* p = "default_text_max_len_name_abc";
     size_info *pos_elem;
     textbox_neighbours *next_elem;
     textbox_text *info_text;
     textbox_button *info_button;
 
-    for (int i = 0; i < 4; i++) {
-        pos_elem = make_size_info(1, max_name_len, 5+i, 3);
+    for (int i = 0; i < 8; i++) {
+        pos_elem = make_size_info(1, max_name_len, 8+i, 3);
         info_text = make_text(p);
         elems[i] = make_element(TEXT_ID, pos_elem, info_text);
     }
 
-    for (int i = 0; i < 4; i++) {
-        pos_elem = make_size_info(1, max_name_len, 5+i, w-3-max_name_len+1);
-        info_text = make_text(p);
-        elems[4+i] = make_element(TEXT_ID, pos_elem, info_text);
-    }
-
-    pos_elem = make_size_info(1, max_name_len, 2, 2);
+    pos_elem = make_size_info(1, max_name_len, 3, 3);
     info_text = make_text(p);
     elems[name_textbox_cnt-2] = make_element(TEXT_ID, pos_elem, info_text);
     
-    pos_elem = make_size_info(1, max_name_len, 2, w-2-max_name_len+1);
+    pos_elem = make_size_info(1, max_name_len, 5, 3);
     info_text = make_text(p);
     elems[name_textbox_cnt-1] = make_element(TEXT_ID, pos_elem, info_text);
     
@@ -281,7 +275,7 @@ textbox *make_lobby_menu() {
     info_button = make_button("leave", CLOSE_KEYBINDINGS, next_elem);
     elems[name_textbox_cnt+0] = make_element(BUTTON_ID, pos_elem, info_button);
 
-    pos_elem = make_size_info(1, 2, 2, w/2-1);
+    pos_elem = make_size_info(1, 2, 4, 3);
     info_text = make_text("VS");
     elems[name_textbox_cnt+1] = make_element(TEXT_ID, pos_elem, info_text);
 
@@ -289,9 +283,13 @@ textbox *make_lobby_menu() {
     info_text = make_text("Lobby");
     elems[name_textbox_cnt+2] = make_element(TEXT_ID, pos_elem, info_text);
 
-    pos_elem = make_size_info(1, 7, 4, 2);
+    pos_elem = make_size_info(1, 7, 7, 2);
     info_text = make_text("Online:");
     elems[name_textbox_cnt+3] = make_element(TEXT_ID, pos_elem, info_text);
+
+    pos_elem = make_size_info(1, 9, 2, 2);
+    info_text = make_text("Players:");
+    elems[name_textbox_cnt+4] = make_element(TEXT_ID, pos_elem, info_text);
 
     return make_textbox(pos, elems, ELEM_CNT, name_textbox_cnt+0, LOBBY_MENU_ID);
 }
