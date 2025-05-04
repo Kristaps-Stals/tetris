@@ -58,3 +58,6 @@ typedef struct __attribute__((packed)) {
     int armed_garbage;
     int queued_garbage;   
 } msg_sync_board_t;
+
+msg_sync_board_t *make_sync_board_msg(tetris_board *board);
+void apply_sync_board_msg(tetris_board *board, msg_sync_board_t msg);

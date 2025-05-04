@@ -392,8 +392,9 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     // main window
     board->win_h = h+2;
     board->win_w = 2*w+2;
-    board->win_y = (LINES-board->win_h)/2;
-    board->win_x = (COLS-board->win_w)/2;
+    board->win_y = settings->win_y;
+    board->win_x = settings->win_x;
+
     board->win = newwin(board->win_h, board->win_w, board->win_y, board->win_x);
 
     // counters and limits
@@ -414,6 +415,8 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     // others
     board->highest_tetromino = calculate_highest_piece(board);
     board->info_manager = make_default_info_manager(board);
+    board->is_controlled = settings->controlled;
+    board->player_id = settings->player_id;
 
     return board;
 }
@@ -607,8 +610,7 @@ void update_info_manager(tetris_board *board) {
     wrefresh(info_manager->info_win);
 }
 
-// returns 1 if game ended (0 otherwise)
-int update_board(tetris_board_update *update) {
+int update_controlled(tetris_board_update *update) {
     int user_input = update->user_input;
     ll delta_time = update->delta_time;
     tetris_board *board = update->board;
@@ -619,7 +621,7 @@ int update_board(tetris_board_update *update) {
     update_tetris_difficulty(board);
 
     if (user_input == 'p') add_garbage(board, 1);
-    // user input
+
     if (user_input == get_keyboard_button(GAME_ROTATE_RIGHT)){
         if (rotate_tetromino(board, DIR_RIGHT)) {
             handle_movement(board);
@@ -672,16 +674,29 @@ int update_board(tetris_board_update *update) {
         if (ret == 1) return ret;
     }
 
+    update_garbage(board->garbage_manager, update->delta_time);
+
     // lose condition
     if (!valid_pos(board->active_tetromino, board)) {
         return 1;
     }
+    return 0;
+}
 
-    update_garbage(board->garbage_manager, update->delta_time);
+// returns 1 if game ended (0 otherwise)
+int update_board(tetris_board_update *update) {
+    tetris_board *board = update->board;
+    
+    // user input
+    int ret = 0;
+    if (board->is_controlled) {
+        ret = update_controlled(update);
+    }
+
     draw_tetris_board(board);
     update_info_manager(board);
     
-    return 0;
+    return ret;
 }
 
 // returns array with x tetromino types 

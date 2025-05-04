@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c2x -I. -I../shared -g
 LDFLAGS = -lncurses
 PROG_NAME = tetris_client
-ALL_OBJECTS = main.o state_manager.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o keyboard_manager.o
+ALL_OBJECTS = main.o state_manager.o protocol.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o keyboard_manager.o
 
 all: $(PROG_NAME)
 
@@ -45,6 +45,9 @@ score.o: tetris/score.c tetris/score.h
 
 kstring.o: ../shared/kstring.c ../shared/kstring.h
 	$(CC) $(CFLAGS) -c ../shared/kstring.c -o kstring.o
+
+protocol.o: ../shared/protocol.c ../shared/protocol.h
+	$(CC) $(CFLAGS) -c ../shared/protocol.c -o protocol.o
 
 keyboard_manager.o: menus/keyboard_manager.c menus/keyboard_manager.h
 	$(CC) $(CFLAGS) -c menus/keyboard_manager.c -o keyboard_manager.o

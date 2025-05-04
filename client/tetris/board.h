@@ -65,7 +65,9 @@ typedef struct tetris_board {
     int win_w, win_h; // width and height of THE WINDOW!
     int **state; // state of each position on the board: -1 = empty, 0-6 = tetrominos, [y][x], 7 = garbage
     int highest_tetromino; // highest placed tetromino
-
+    bool is_controlled; // is this board being controlled by this client?
+    int player_id; // player id used for multiplayer
+    
     tetromino *active_tetromino; // actively falling tetromino
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits
     tetris_bag_manager *bag_manager;
@@ -81,6 +83,9 @@ typedef struct tetris_board_settings {
     int window_width;
     int window_height;
     int bag_seed;
+    int win_x, win_y;
+    bool controlled;
+    int player_id;
 } tetris_board_settings;
 
 // information used when updating tetris board
