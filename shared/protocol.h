@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "../client/tetris/board.h"
 
 typedef enum {
     MSG_HELLO         = 0x00,
@@ -45,3 +46,15 @@ typedef struct __attribute__((packed)) {
     char player_name[30];
 } msg_welcome_t;
 
+typedef struct __attribute__((packed)) {
+    int player_id;
+    char state[40][10];
+    tetromino active_tetromino;
+    board_counters counters;
+    tetris_bag now;
+    tetris_bag next;
+    int held_tetromino;
+    int current_level;
+    int armed_garbage;
+    int queued_garbage;   
+} msg_sync_board_t;

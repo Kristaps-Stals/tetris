@@ -382,7 +382,6 @@ void toggle_ready_state(menu_manager *manager) {
     send_message(manager->server_socket, MSG_SET_READY, PLAYER_ID_BROADCAST, &flag, 1);
 }
 
-
 // returns signals for main gameloop
 // returns 1 to start game
 int manage_menus(menu_manager *manager, int user_input) {
@@ -391,7 +390,7 @@ int manage_menus(menu_manager *manager, int user_input) {
     int ret = 0;
     switch(update_result) {
         case START_GAME:
-            ret = 1;
+            ret = UPDSTATE_SOLO;
             break;
         case OPEN_SETTINGS:
             open_menu(manager, make_settings_menu());

@@ -15,6 +15,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include "state_manager.h"
 
 typedef long long ll;
 
@@ -40,74 +41,43 @@ void gameloop(const char *host, int port) {
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
     init_binds();
-    menu_manager *mgr = make_menu_manager();
-    tetris_board *board = NULL;
-    int state = 0; // 0 = in menus, 1 = playing
-    mvprintw(LINES-9, 0, "Game:");
-    mvprintw(LINES-8, 0, "  Arrow keys to move right/down/left");
-    mvprintw(LINES-7, 0, "  Z/X - rotate");
-    mvprintw(LINES-6, 0, "  C - hold");
-    mvprintw(LINES-5, 0, "  SPACE - hard drop");
-    mvprintw(LINES-4, 0, "Menu:");
-    mvprintw(LINES-3, 0, "  Arrow keys to move up/right/down/left");
-    mvprintw(LINES-2, 0, "  Z/ENTER - select option");
-    mvprintw(LINES-1, 0, "  X - back");
-
-    refresh();
+    state_manager *state = make_state_manager();
+    // mvprintw(LINES-9, 0, "Game:");
+    // mvprintw(LINES-8, 0, "  Arrow keys to move right/down/left");
+    // mvprintw(LINES-7, 0, "  Z/X - rotate");
+    // mvprintw(LINES-6, 0, "  C - hold");
+    // mvprintw(LINES-5, 0, "  SPACE - hard drop");
+    // mvprintw(LINES-4, 0, "Menu:");
+    // mvprintw(LINES-3, 0, "  Arrow keys to move up/right/down/left");
+    // mvprintw(LINES-2, 0, "  Z/ENTER - select option");
+    // mvprintw(LINES-1, 0, "  X - back");
+    // refresh();
 
     while (true) {
+        // get delta time
         clock_gettime(CLOCK_MONOTONIC, &now);
-        ll delta_time = get_delta_micro_s(&now, &last_time);
+        int64_t delta_time = get_delta_micro_s(&now, &last_time);
         last_time = now;
         if (delta_time == 0) delta_time = 1;
 
         // debug
-        mvprintw(0, 0, "%lld, %d", delta_time, mgr->server_socket);
+        mvprintw(0, 0, "%ld, %d", delta_time, state->menu_manager->server_socket);
         refresh();
-    
+
         int user_input = getch();
 
-        process_server_messages(mgr);
+        process_server_messages(state->menu_manager);
         
-        int ret;
-        switch(state) {
-            case 0:
-                ret = manage_menus(mgr, user_input);
-                if (ret == 1) {
-                    state = 1;
-                    
-                    tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
-                    board_settings->bag_seed = 0;
-                    board_settings->play_height = 40;
-                    board_settings->play_width = 10;
-                    board_settings->window_height = 22;
-                    board_settings->window_width = 10;
-                    board = construct_tetris_board(board_settings);
-                    free(board_settings);
-                }
-                break;
-            case 1:
-                tetris_board_update *upd = malloc(sizeof(tetris_board_update));
-                upd->board = board;
-                upd->delta_time = delta_time;
-                upd->user_input = user_input;
-                ret = update_board(upd);
-                free(upd);
-                if (ret == 1) {
-                    state = 0;
-                    open_menu(mgr, make_endscreen(board));
-                    if (board != NULL) deconstruct_tetris_board(board);
-                    board = NULL;
-                }
-                break;
-        }
-        if (mgr->top < 0) break;
+        state->user_input = user_input;
+        state->delta_time = delta_time;
+        handle_state(state);
+
+        if (state->menu_manager->top < 0) break; // closing all menus causes game to close
         
         nanosleep(&sleeptime, NULL);
     }
     
-    if (mgr) free_menu_manager(mgr);
-    if (board) deconstruct_tetris_board(board);
+    free_state_manager(state);
 }
 
 int main(int argc, char **argv) {

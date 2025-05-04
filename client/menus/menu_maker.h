@@ -30,6 +30,11 @@ enum {
     WRITE_ID_JOIN_PORT = 1
 };
 
+enum {
+    UPDSTATE_SOLO = 1,
+    UPDSTATE_VERSUS = 2,
+};
+
 typedef struct menu_manager {
     textbox **stack;
     int top, max_stack;

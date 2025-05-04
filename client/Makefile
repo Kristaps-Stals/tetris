@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c2x -I. -I../shared -g
 LDFLAGS = -lncurses
 PROG_NAME = tetris_client
-ALL_OBJECTS = main.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o keyboard_manager.o
+ALL_OBJECTS = main.o state_manager.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o keyboard_manager.o
 
 all: $(PROG_NAME)
 
@@ -15,6 +15,9 @@ $(PROG_NAME): $(ALL_OBJECTS)
 # Specific rules if paths differ
 main.o: main.c tetris/board.h net/net.h
 	$(CC) $(CFLAGS) -c main.c -o main.o
+
+state_manager.o: state_manager.c state_manager.h
+	$(CC) $(CFLAGS) -c state_manager.c -o state_manager.o
 
 board.o: tetris/board.c tetris/board.h
 	$(CC) $(CFLAGS) -c tetris/board.c -o board.o
