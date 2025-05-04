@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <time.h>
 #include "textbox.h"
+#include "menu_maker.h"
 #include "../shared/kstring.h"
 #include "keyboard_manager.h"
 
@@ -363,6 +364,30 @@ void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
             draw_write_elem(win, element, is_selected);
             break;
     }
+}
+
+// returns 0 on success,
+// -1 if element out of range,
+// -2 if element does not have text field (or is not supported),
+// deep copies text, does not delete it
+// currently only supports TEXT and BUTTOn
+int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text) {
+    textbox *tbox = menu_manager_->stack[menu_manager_->top];
+    if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
+    textbox_element *elem = tbox->elements[elem_id];
+    switch(elem->type) {
+        case TEXT_ID:
+            textbox_text *info_txt = elem->info;
+            free(info_txt->text);
+            info_txt->text = copy_text(new_text);       
+            break;
+        case BUTTON_ID:
+            textbox_button *info_but = elem->info;
+            free(info_but->text);
+            info_but->text = copy_text(new_text);
+            break;
+    }
+    return 0;
 }
 
 // TEXTBOX

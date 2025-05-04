@@ -237,47 +237,71 @@ textbox *make_join_menu() {
     return make_textbox(pos, elems, ELEM_CNT, 0, JOIN_LOBBY_MENU_ID);
 }
 
-textbox *make_lobby_menu(menu_manager *manager) {
-    int w = 30, h = 12;
-    int x = (COLS - w) / 2;
-    int y = (LINES - h) / 2;
+textbox *make_lobby_menu() {
+    int w = 40;
+    int h = 20;
+    int x = (COLS-w)/2;
+    int y = (LINES-h)/2;
+
     size_info *pos = make_size_info(h, w, y, x);
 
-    int SLOTS = 8;
-    int ELEM_CNT = SLOTS + 2;  // +1 for Back button, +1 for Ready button
-    textbox_element **elems = malloc(ELEM_CNT * sizeof(*elems));
+    int name_textbox_cnt = 10;
+    int ELEM_CNT = name_textbox_cnt+4;
+    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
-    for (int i = 0; i < SLOTS; i++) {
-        char label[40];
-        if (i < 2)
-            snprintf(label, sizeof(label), "Player %d: %s [%s]", i+1, manager->slot_names[i], manager->slot_ready[i] ? "READY" : "WAIT");
-        else
-            snprintf(label, sizeof(label), "Spectator %d: %s", i-1, manager->slot_names[i]);
-        size_info *p = make_size_info(1, strlen(label), 1 + i, 2);
-        textbox_text *t = make_text(label);
-        elems[i] = make_element(TEXT_ID, p, t);
+    int max_name_len = 15;
+    char* p = "ABCDEFGHIJKLMN";
+    size_info *pos_elem;
+    textbox_neighbours *next_elem;
+    textbox_text *info_text;
+    textbox_button *info_button;
+
+    for (int i = 0; i < 4; i++) {
+        pos_elem = make_size_info(1, max_name_len, 5+i, 3);
+        info_text = make_text(p);
+        elems[i] = make_element(TEXT_ID, pos_elem, info_text);
     }
 
-    // Back button (right of Ready)
-    size_info *pb = make_size_info(1, 6, h-2, w-1-6);
-    // left: Ready button, right: Ready button (wrap), up/down: itself
-    textbox_neighbours *nb = make_neighbours(SLOTS+1, SLOTS+1, SLOTS, SLOTS+1);
-    textbox_button *bb = make_button("Back", CLOSE_MENU, nb);
-    elems[SLOTS] = make_element(BUTTON_ID, pb, bb);
+    for (int i = 0; i < 4; i++) {
+        pos_elem = make_size_info(1, max_name_len, 5+i, w-3-max_name_len+1);
+        info_text = make_text(p);
+        elems[4+i] = make_element(TEXT_ID, pos_elem, info_text);
+    }
 
-    // Ready button (left of Back)
-    size_info *pr = make_size_info(1, 6, h-2, 2);
-    // left: Back button, right: Back button (wrap), up/down: itself
-    textbox_neighbours *nr = make_neighbours(SLOTS, SLOTS, SLOTS+1, SLOTS);
-    textbox_button *br = make_button("Ready", TOGGLE_READY, nr);
-    elems[SLOTS+1] = make_element(BUTTON_ID, pr, br);
+    pos_elem = make_size_info(1, max_name_len, 2, 2);
+    info_text = make_text(p);
+    elems[name_textbox_cnt-2] = make_element(TEXT_ID, pos_elem, info_text);
+    
+    pos_elem = make_size_info(1, max_name_len, 2, w-2-max_name_len+1);
+    info_text = make_text(p);
+    elems[name_textbox_cnt-1] = make_element(TEXT_ID, pos_elem, info_text);
+    
+    pos_elem = make_size_info(1, 5, h-2, w-1-5-1);
+    next_elem = make_neighbours(-1, -1, -1, -1);
+    info_button = make_button("leave", CLOSE_KEYBINDINGS, next_elem);
+    elems[name_textbox_cnt+0] = make_element(BUTTON_ID, pos_elem, info_button);
 
-    return make_textbox(pos, elems, ELEM_CNT, SLOTS+1, LOBBY_MENU_ID);
+    pos_elem = make_size_info(1, 2, 2, w/2-1);
+    info_text = make_text("VS");
+    elems[name_textbox_cnt+1] = make_element(TEXT_ID, pos_elem, info_text);
+
+    pos_elem = make_size_info(1, 5, 0, 2);
+    info_text = make_text("Lobby");
+    elems[name_textbox_cnt+2] = make_element(TEXT_ID, pos_elem, info_text);
+
+    pos_elem = make_size_info(1, 7, 4, 2);
+    info_text = make_text("Online:");
+    elems[name_textbox_cnt+3] = make_element(TEXT_ID, pos_elem, info_text);
+
+    return make_textbox(pos, elems, ELEM_CNT, name_textbox_cnt+0, LOBBY_MENU_ID);
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
-    if (manager->top == manager->max_stack) return false;
+    if (manager->top == manager->max_stack) {
+        free_textbox(new_menu);
+        return false;
+    }
 
     // erase previous window
     textbox **stack = manager->stack;
@@ -391,6 +415,10 @@ int manage_menus(menu_manager *manager, int user_input) {
         case TOGGLE_READY:
             toggle_ready_state(manager);
             break;
+    }
+
+    if (user_input == 'y') {
+        open_menu(manager, make_lobby_menu());
     }
     return ret;
 }

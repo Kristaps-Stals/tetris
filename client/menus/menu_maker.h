@@ -1,6 +1,7 @@
 #pragma once
 #include "../tetris/board.h"
 #include "textbox.h"
+#include "../tetris/board.h"
 
 enum {
     CLOSE_MENU = -1,
@@ -45,6 +46,7 @@ void free_menu_manager(menu_manager *manager);
 textbox *make_main_menu();
 textbox *make_settings_menu();
 textbox *make_endscreen(tetris_board *board);
+int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
 int update_menus(menu_manager *manager, int user_input);
 int manage_menus(menu_manager *manager, int user_input);
 textbox *make_lobby_menu(menu_manager *manager);
