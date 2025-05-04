@@ -67,14 +67,15 @@ void gameloop(const char *host, int port) {
         bool lobby_updated = process_lobby_messages(mgr);
 
         if (lobby_updated && mgr->top >= 0 && mgr->stack[mgr->top]->id == LOBBY_MENU_ID) {
-            clear();
-            werase(mgr->stack[mgr->top]->win);
-            wrefresh(mgr->stack[mgr->top]->win);
-            free_textbox(mgr->stack[mgr->top]);
-            mgr->stack[mgr->top] = make_lobby_menu(mgr);
-            draw_textbox(mgr->stack[mgr->top]);
-            refresh();
-            doupdate();
+            // clear();
+            // werase(mgr->stack[mgr->top]->win);
+            // wrefresh(mgr->stack[mgr->top]->win);
+            // free_textbox(mgr->stack[mgr->top]);
+            // mgr->stack[mgr->top] = make_lobby_menu(mgr);
+            // draw_textbox(mgr->stack[mgr->top]);
+            // refresh();
+            // doupdate();
+            update_lobby_menu(mgr);
         }
 
         int ret;

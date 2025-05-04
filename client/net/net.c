@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <../shared/protocol.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
 char *copy_text(const char *src);
 
@@ -126,7 +127,8 @@ void attempt_join_lobby(menu_manager *manager) {
             fcntl(sockfd, F_SETFL, O_NONBLOCK);
             manager->server_socket = sockfd;
             send_hello(sockfd, "TetrisClient 1.0", "PlayerOne");
-            open_menu(manager, make_lobby_menu(manager));
+            open_menu(manager, make_lobby_menu());
+            update_lobby_menu(manager);
         }
     }
 

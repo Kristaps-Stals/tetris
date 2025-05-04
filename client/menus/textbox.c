@@ -296,7 +296,7 @@ int update_write_elem(textbox *tbox, int user_input) {
             info->is_editing = false;
             return STOP_EDITING;
         }
-        if (user_input == 263) { // backspace
+        if (user_input == 263 || user_input == 260) { // backspace or left arrow
             if (info->curr_len <= 0) return 0;
             info->curr_len--;
             info->text[info->curr_len] = 0;

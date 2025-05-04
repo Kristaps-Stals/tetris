@@ -208,12 +208,12 @@ textbox *make_join_menu() {
     
     size_info *pos_write = make_size_info(1, 15, 1, 1);
     textbox_neighbours *next_write = make_neighbours(4, 1, 4, 1);
-    textbox_write *info_write = make_write_elem("", 15, WRITE_ID_JOIN_IP, next_write);
+    textbox_write *info_write = make_write_elem("127.0.0.1", 15, WRITE_ID_JOIN_IP, next_write);
     elems[0] = make_element(WRITE_ELEMENT_ID, pos_write, info_write);
 
     pos_write = make_size_info(1, 5, 1, 17);
     next_write = make_neighbours(3, 0, 3, 0);
-    info_write = make_write_elem("", 5, WRITE_ID_JOIN_PORT, next_write);
+    info_write = make_write_elem("5000", 5, WRITE_ID_JOIN_PORT, next_write);
     elems[1] = make_element(WRITE_ELEMENT_ID, pos_write, info_write);
 
     size_info *pos_text1 = make_size_info(1, 4, 0, 2);
@@ -250,7 +250,7 @@ textbox *make_lobby_menu() {
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     int max_name_len = 15;
-    char* p = "ABCDEFGHIJKLMN";
+    char* p = "";
     size_info *pos_elem;
     textbox_neighbours *next_elem;
     textbox_text *info_text;
@@ -294,6 +294,11 @@ textbox *make_lobby_menu() {
     elems[name_textbox_cnt+3] = make_element(TEXT_ID, pos_elem, info_text);
 
     return make_textbox(pos, elems, ELEM_CNT, name_textbox_cnt+0, LOBBY_MENU_ID);
+}
+void update_lobby_menu(menu_manager *manager) {
+    for (int i = 0; i < 8; i++) { // TODO: fix hardcoded max player
+        change_elem_text(manager, i, manager->slot_names[i]);
+    }
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
@@ -417,8 +422,5 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
     }
 
-    if (user_input == 'y') {
-        open_menu(manager, make_lobby_menu());
-    }
     return ret;
 }
