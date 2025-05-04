@@ -1,4 +1,5 @@
 #pragma once
+#include "../tetris/board.h"
 #include "textbox.h"
 #include "../tetris/board.h"
 
@@ -11,7 +12,8 @@ enum {
     DEFAULT_KEYBINDINGS = 5,
     CLOSE_KEYBINDINGS = 6,
     OPEN_JOIN = 7,
-    ATTEMPT_JOIN = 8
+    ATTEMPT_JOIN = 8,
+    TOGGLE_READY = 9
 };
 
 enum {
@@ -20,7 +22,7 @@ enum {
     ENDSCREEN_MENU_ID = 2,
     KEYBINDINGS_MENU_ID = 3,
     JOIN_LOBBY_MENU_ID = 4,
-    LOBBY_MENU_ID = 5
+    LOBBY_MENU_ID = 5,
 };
 
 enum {
@@ -32,6 +34,10 @@ typedef struct menu_manager {
     textbox **stack;
     int top, max_stack;
     bool is_editing;
+    int       server_socket;
+    char      slot_names[8][32];
+    bool      slot_ready[8]; // new field to track readiness
+
 } menu_manager;
 
 bool open_menu(menu_manager *manager, textbox *new_menu);
@@ -43,3 +49,4 @@ textbox *make_endscreen(tetris_board *board);
 int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
 int update_menus(menu_manager *manager, int user_input);
 int manage_menus(menu_manager *manager, int user_input);
+textbox *make_lobby_menu(menu_manager *manager);

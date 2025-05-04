@@ -3,6 +3,7 @@
 #include "message_handler.h"
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 
 static client_t clients[MAX_CLIENTS];
 static int      count;
@@ -37,16 +38,37 @@ void client_manager_add(int sockfd, uint8_t player_id, const char *name) {
 }
 
 void client_manager_remove(int sockfd) {
+    printf("[client_manager] removing fd %d (count was %d)\n", sockfd, count);
+    // 1) find & save the player_id (for your LEAVE broadcast)
+    uint8_t player_id = 0;
     for (int i = 0; i < count; i++) {
-        if (clients[i].sockfd == sockfd) {
-            close(sockfd);
-            // also drop mapping
-            message_handler_remove_client(sockfd);
-            clients[i] = clients[--count];
-            return;
-        }
+      if (clients[i].sockfd == sockfd) {
+        player_id = clients[i].player_id;
+        break;
+      }
     }
+
+    // 2) broadcast the zero‑payload LEAVE if we have a valid id
+    if (player_id != 0) {
+      uint8_t leave_hdr[4] = { 0, 2, MSG_LEAVE, player_id };
+      client_manager_broadcast(leave_hdr, 4, NULL, 0);
+    }
+
+    // 3) remove sockfd from clients[]
+    for (int i = 0; i < count; i++) {
+      if (clients[i].sockfd == sockfd) {
+        close(clients[i].sockfd);
+        clients[i] = clients[--count];
+        break;
+      }
+    }
+
+    // 4) and finally remove it from your fd_map
+    message_handler_remove_client(sockfd);
 }
+
+
+
 
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
                               const uint8_t *payload, int payload_len) {

@@ -7,10 +7,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <errno.h>
+// #include "../client/net/net.h" 
+// TODO: MOVE TO SHARED. you can implement building payloads not with write, but with send_message() from net.h
 
 static uint8_t next_id = 1;
 static struct { int fd; uint8_t player_id; } fd_map[MAX_CLIENTS];
 static int map_count;
+
+static uint8_t find_free_id(void) {
+    for (uint8_t cand = 1; cand <= MAX_CLIENTS; cand++) {
+        bool used = false;
+        for (int i = 0; i < map_count; i++) {
+            if (fd_map[i].player_id == cand) {
+                used = true;
+                break;
+            }
+        }
+        if (!used) return cand;
+    }
+    return 0;  // no slots free
+}
 
 void message_handler_init(void) {
     next_id   = 1;
@@ -36,23 +53,41 @@ void message_handler_remove_client(int fd) {
 void message_handler_handle_hello(int client_fd) {
     uint8_t hdr[4];
     if (read(client_fd, hdr, 4) != 4) {
-        close(client_fd);
+        client_manager_remove(client_fd);
         return;
     }
     uint8_t type = hdr[2];
     if (type != MSG_HELLO) {
-        close(client_fd);
+        client_manager_remove(client_fd);
         return;
     }
 
     msg_hello_t hello;
     if (read(client_fd, &hello, sizeof(hello)) != sizeof(hello)) {
-        close(client_fd);
+        client_manager_remove(client_fd);
         return;
     }
 
-    uint8_t id = next_id++;
-    if (id == 0) id = next_id = 1;
+    // pick the first free slot (1..MAX_CLIENTS)
+    uint8_t id = find_free_id();
+    if (id == 0) {
+        const char *reason = "Server full";
+        uint16_t payload_len = strlen(reason) + 1; // include '\0'
+        uint16_t length = 1 + 1 + payload_len;    // type + source + payload
+
+        uint8_t hdr[4] = {
+            (uint8_t)(length >> 8),
+            (uint8_t)(length & 0xFF),
+            MSG_DISCONNECT,
+            PLAYER_ID_BROADCAST
+        };
+        // send the disconnect
+        write(client_fd, hdr, sizeof hdr);
+        write(client_fd, reason, payload_len);
+
+        close(client_fd);
+        return;
+    }
 
     // store mapping
     fd_map[map_count].fd         = client_fd;
@@ -98,20 +133,58 @@ void message_handler_handle_hello(int client_fd) {
         write(client_fd, entry, sizeof(entry));
     }
 
+    printf("Sent MSG_WELCOME: player_id=%d, name=%s, length=%d\n", welcome.player_id, welcome.player_name, welcome.length);
+    for (int i = 0; i < existing; i++) {
+        const client_t *c = client_manager_get(i);
+        printf("  entry %d: id=%d, ready=%d, name=%s\n", i, c->player_id, c->ready, c->name);
+    }
+    fflush(stdout);
+
     // 3) register newcomer
     client_manager_add(client_fd, id, hello.player_name);
 }
-
 void message_handler_dispatch(int client_fd) {
     uint8_t hdr[4];
-    if (read(client_fd, hdr, 4) != 4) {
+    ssize_t n = read(client_fd, hdr, sizeof hdr);
+
+    if (n == 0) {
+        client_manager_remove(client_fd); // peer closed cleanly
+        return;
+    }
+    if (n < 0) {
+        // skip if no data
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+            return;
+        }
+        // real error
         client_manager_remove(client_fd);
         return;
     }
+    if (n < (ssize_t)sizeof hdr) {
+        // partial header, give up on this client
+        client_manager_remove(client_fd);
+        return;
+    }
+
     uint16_t length = (hdr[0] << 8) | hdr[1];
     uint8_t  type   = hdr[2];
     uint8_t  src    = message_handler_lookup_id(client_fd);
 
+    // client‑initiated leave
+    if (type == MSG_LEAVE) {
+        // discard any leave payload
+        int toskip = length - 2;
+        char junk[128];
+        while (toskip > 0) {
+            ssize_t r = read(client_fd, junk, (unsigned long)toskip < sizeof junk ? toskip : sizeof junk);
+            if (r <= 0) break;
+            toskip -= r;
+        }
+        client_manager_remove(client_fd);
+        return;
+    }
+
+    // SET_READY is exactly 3 bytes: type+source + 1 byte flag
     if (type == MSG_SET_READY && length == 3) {
         uint8_t flag;
         if (read(client_fd, &flag, 1) != 1) {
@@ -121,25 +194,23 @@ void message_handler_dispatch(int client_fd) {
         bool ready = (flag != 0);
         client_manager_set_ready(src, ready);
 
-        // broadcast SET_READY
         uint8_t ready_hdr[4] = {0, 3, MSG_SET_READY, src};
         client_manager_broadcast(ready_hdr, 4, &flag, 1);
 
-        // if exactly two are ready → start game
         if (client_manager_count_ready() == 2) {
-            uint8_t stat_hdr[4]   = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
+            uint8_t stat_hdr[4]    = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
             uint8_t stat_payload[1] = {1};
             client_manager_broadcast(stat_hdr, 4, stat_payload, 1);
-            // TODO: send initial SYNC_BOARD
         }
-    } else {
-        // skip over unknown payload
-        int toskip = length - 2;
-        char buf[256];
-        while (toskip > 0) {
-            int r = read(client_fd, buf, toskip < sizeof(buf) ? toskip : sizeof(buf));
-            if (r <= 0) break;
-            toskip -= r;
-        }
+        return;
+    }
+
+    // unknown or unhandled message: skip
+    int toskip = length - 2;
+    char buf[256];
+    while (toskip > 0) {
+        ssize_t r = read(client_fd, buf, (unsigned long)toskip < sizeof buf ? toskip : sizeof buf);
+        if (r <= 0) break;
+        toskip -= r;
     }
 }

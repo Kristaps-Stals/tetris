@@ -5,6 +5,9 @@
 #include "string.h"
 #include "../../shared/kstring.h"
 #include "keyboard_manager.h"
+#include "../net/net.h" 
+#include <unistd.h>    
+#include <fcntl.h>
 
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
@@ -12,6 +15,11 @@ menu_manager *make_menu_manager() {
     manager->stack = malloc((manager->max_stack+1)*sizeof(textbox*));
     manager->top = 0;
     manager->is_editing = false;
+    manager->server_socket = -1; 
+    for (int i = 0; i < 8; i++) {
+        manager->slot_ready[i] = false;
+        strcpy(manager->slot_names[i], "(empty)");
+    }
     manager->stack[0] = make_main_menu();
     return manager;
 }
@@ -308,13 +316,31 @@ bool open_menu(menu_manager *manager, textbox *new_menu) {
 
 // pops the top textbox in menu manager
 void pop_menu_stack(menu_manager *manager) {
-    textbox **stack = manager->stack;
+    if (manager->server_socket >= 0) {
+        // send MSG_LEAVE before disconnecting
+        char reason[] = "Left the lobby";
+        // this builds the length+type+source header for you
+        send_message(
+          manager->server_socket,
+          MSG_LEAVE,
+          PLAYER_ID_BROADCAST,       // or your own ID if you have it
+          reason,
+          sizeof(reason)             // strlen(reason) + 1
+        );
+    
+        
+        close(manager->server_socket);
+        manager->server_socket = -1;
+    }
 
+    // continue popping menu
+    textbox **stack = manager->stack;
     werase(stack[manager->top]->win);
     wrefresh(stack[manager->top]->win);
     free_textbox(stack[manager->top]);
     manager->top--;
 }
+
 
 // returns any positive trigger vals
 int update_menus(menu_manager *manager, int user_input) {
@@ -345,37 +371,14 @@ void close_keybindings(menu_manager *manager) {
     pop_menu_stack(manager);
 }
 
-// length does not include null byte
-// mallocs a copy of the text, dont forget to free after use
-char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) {
-    textbox **stack = manager->stack;
-    int top = manager->top;
-    
-    for (int i = 0; i < stack[top]->element_count; i++) {
-        if (stack[top]->elements[i]->type == WRITE_ELEMENT_ID) {
-            textbox_write *info = stack[top]->elements[i]->info;
-            if (info->write_id != write_id || info->text == NULL) continue;
-            *length = info->curr_len;
-            return copy_text(info->text);
-        }
-    }
+void toggle_ready_state(menu_manager *manager) {
+    static bool ready = false;
+    ready = !ready;
 
-    // id not found
-    *length = 0;
-    return NULL;
+    uint8_t flag = ready ? 1 : 0;
+    send_message(manager->server_socket, MSG_SET_READY, PLAYER_ID_BROADCAST, &flag, 1);
 }
 
-void attempt_join_lobby(menu_manager *manager) {
-    int ip_len, port_len;
-    char* ip_text = fetch_text_from_element(manager, WRITE_ID_JOIN_IP, &ip_len);
-    char* port_text = fetch_text_from_element(manager, WRITE_ID_JOIN_PORT, &port_len);
-    if (ip_text != NULL && port_text != NULL) {
-        // TODO: attempt to join
-        // func(ip_text, ip_len, port_text, port_len);
-    }
-    if (ip_text != NULL) free(ip_text);
-    if (port_text != NULL) free(port_text);
-}
 
 // returns signals for main gameloop
 // returns 1 to start game
@@ -383,7 +386,6 @@ int manage_menus(menu_manager *manager, int user_input) {
     int update_result = update_menus(manager, user_input);
 
     int ret = 0;
-    // what each button trigger val does
     switch(update_result) {
         case START_GAME:
             ret = 1;
@@ -409,6 +411,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case ATTEMPT_JOIN:
             attempt_join_lobby(manager);
+            break;
+        case TOGGLE_READY:
+            toggle_ready_state(manager);
             break;
     }
 

@@ -3,3 +3,4 @@
 *.config
 tetris_client
 tetris_server
+.DS_Store

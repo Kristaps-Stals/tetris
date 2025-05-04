@@ -61,11 +61,17 @@ void connection_loop(int listen_fd,
         if (--ready <= 0) return;
     }
 
-    for (int i = 0; i < client_manager_count() && ready > 0; i++) {
+    int i = 0;
+    while (i < client_manager_count() && ready > 0) {
         int fd = client_manager_get(i)->sockfd;
         if (FD_ISSET(fd, &rfds)) {
             on_data(fd);
-            if (--ready <= 0) return;
+            if (client_manager_get(i) && client_manager_get(i)->sockfd == fd) {
+                i++;  // Only increment if the client was NOT removed.
+            }
+            ready--;
+        } else {
+            i++; // increment normally if fd was not set
         }
     }
 }

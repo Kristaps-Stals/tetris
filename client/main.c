@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include "net/net.h" 
 #include "menus/keyboard_manager.h"
+#include "../shared/protocol.h"  // for MSG_WELCOME, MSG_HELLO, MSG_DISCONNECT
+#include <string.h>
+#include <sys/select.h>
+#include <fcntl.h>
 
 typedef long long ll;
 
@@ -29,35 +33,14 @@ ll get_delta_micro_s(struct timespec *now, struct timespec *bef) {
     return (ll)(time_ll(now)-time_ll(bef))/1e3;
 }
 
-int parse_connection_args(int argc, char **argv, const char **host, int *port) { // todo: move to net?
-    *host = "127.0.0.1";
-    *port = 0;
-
-    int opt;
-    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
-        switch (opt) {
-            case 'p':
-                *port = atoi(optarg);
-                break;
-            case 'h':
-                *host = optarg;
-                break;
-            default:
-                fprintf(stderr, "Usage: %s -p <port> [-h <host>]\n", argv[0]);
-                return 0;
-        }
-    }
-
-    // if no port, just run singe player :)
-    return 1;
-}
-
 void gameloop(const char *host, int port) {
+    (void)host; // unused
+    (void)port; // unused
     struct timespec now, last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
     init_binds();
-    menu_manager *menu_manager_ = make_menu_manager();
+    menu_manager *mgr = make_menu_manager();
     tetris_board *board = NULL;
     int state = 0; // 0 = in menus, 1 = playing
     mvprintw(LINES-9, 0, "Game:");
@@ -77,34 +60,30 @@ void gameloop(const char *host, int port) {
         ll delta_time = get_delta_micro_s(&now, &last_time);
         last_time = now;
         if (delta_time == 0) delta_time = 1;
+    
         int user_input = getch();
+        if (user_input == ERR) user_input = -1;
+
+        bool lobby_updated = process_lobby_messages(mgr);
+
+        if (lobby_updated && mgr->top >= 0 && mgr->stack[mgr->top]->id == LOBBY_MENU_ID) {
+            clear();
+            werase(mgr->stack[mgr->top]->win);
+            wrefresh(mgr->stack[mgr->top]->win);
+            free_textbox(mgr->stack[mgr->top]);
+            mgr->stack[mgr->top] = make_lobby_menu(mgr);
+            draw_textbox(mgr->stack[mgr->top]);
+            refresh();
+            doupdate();
+        }
 
         int ret;
         switch(state) {
             case 0:
-                ret = manage_menus(menu_manager_, user_input);
+                ret = manage_menus(mgr, user_input);
                 if (ret == 1) {
                     state = 1;
-
-                    // connect
-                    if (port != 0) {
-                        int server_socket = connect_to_server(host, port);
-                        if (server_socket < 0) {
-                            mvprintw(0, 0, "Failed to connect to server at %s:%d", host, port);
-                            refresh();
-                            sleep(2);
-                            break;
-                        }
-                        if (send_hello(server_socket, "TetrisClient 1.0", "PlayerOne") < 0) {
-                            mvprintw(0, 0, "Failed to send HELLO message.");
-                            refresh();
-                            sleep(2);
-                            close(server_socket);
-                            break;
-                        }
-                    }
-                
-                    // setup tetris
+                    
                     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
                     board_settings->bag_seed = 0;
                     board_settings->play_height = 40;
@@ -116,7 +95,6 @@ void gameloop(const char *host, int port) {
                 }
                 break;
             case 1:
-                // update board
                 tetris_board_update *upd = malloc(sizeof(tetris_board_update));
                 upd->board = board;
                 upd->delta_time = delta_time;
@@ -124,21 +102,20 @@ void gameloop(const char *host, int port) {
                 ret = update_board(upd);
                 free(upd);
                 if (ret == 1) {
-                    // go back to menus
                     state = 0;
-                    open_menu(menu_manager_, make_endscreen(board));
+                    open_menu(mgr, make_endscreen(board));
                     if (board != NULL) deconstruct_tetris_board(board);
                     board = NULL;
                 }
                 break;
         }
-        if (menu_manager_->top < 0) break; // if close all menus quit game
+        if (mgr->top < 0) break;
         
         nanosleep(&sleeptime, NULL);
     }
-
-    if (menu_manager_ != NULL) free_menu_manager(menu_manager_);
-    if (board != NULL) deconstruct_tetris_board(board);
+    
+    if (mgr) free_menu_manager(mgr);
+    if (board) deconstruct_tetris_board(board);
 }
 
 int main(int argc, char **argv) {
