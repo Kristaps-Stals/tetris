@@ -18,4 +18,4 @@ int parse_connection_args(int argc, char **argv, const char **host, int *port);
 void attempt_join_lobby(menu_manager *manager);
 char* fetch_text_from_element(menu_manager *manager, int write_id, int *length);
 
-bool process_lobby_messages(menu_manager *mgr);
+void process_server_messages(menu_manager *mgr);

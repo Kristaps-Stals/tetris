@@ -136,10 +136,91 @@ void attempt_join_lobby(menu_manager *manager) {
     if (port_text) free(port_text);
 }
 
+void handle_msg_welcome(menu_manager *mgr, uint8_t *buf) {
+    msg_welcome_t *w = (msg_welcome_t*)buf;
+    for(int i=0; i<8; i++) 
+        strcpy(mgr->slot_names[i], "(empty)");
+    int me = w->player_id - 1;
+    strncpy(mgr->slot_names[me], w->player_name, 31);
+    uint8_t *p = buf + sizeof(*w);
+    for(int i = 0; i < w->length && i < MAX_CLIENTS; i++) {
+        uint8_t pid = p[0];
+        char *nm = (char*)(p+2);
+        strncpy(mgr->slot_names[pid-1], nm, 31);
+        p += 1 + 1 + 30;
+    }
+}
+
+void handle_msg_hello(menu_manager *mgr, uint8_t *buf, uint8_t src) {
+    msg_hello_t *h = (msg_hello_t*)buf;
+    strncpy(mgr->slot_names[src-1], h->player_name, 31);
+}
+
+void handle_msg_leave(menu_manager *mgr, uint8_t src) {
+    strcpy(mgr->slot_names[src - 1], "(empty)");
+}
+
+void handle_msg_disconnect(menu_manager *mgr, uint8_t src) {
+    strcpy(mgr->slot_names[src-1], "(empty)");
+}
+
+void handle_msg_set_ready(menu_manager *mgr, uint8_t *buf, uint8_t src) {
+    bool ready = buf[0];
+    mgr->slot_ready[src - 1] = ready;
+}
+
+void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
+    bool lobby_updated = false;
+    (void)psz; // unused for now?
+
+    switch(type) {
+        case MSG_WELCOME: {
+            handle_msg_welcome(mgr, buf);
+            lobby_updated = true;
+            break;
+        }
+        case MSG_HELLO: {
+            handle_msg_hello(mgr, buf, src);
+            lobby_updated = true;
+            break;
+        }
+        case MSG_LEAVE: {
+            handle_msg_leave(mgr, src);
+            lobby_updated = true;
+            break;
+        }
+        case MSG_DISCONNECT: {
+            handle_msg_disconnect(mgr, src);
+            lobby_updated = true;
+            break;
+        }
+        case MSG_SET_READY: {
+            handle_msg_set_ready(mgr, buf, src);
+            lobby_updated = true;
+            break;
+        }
+        default:
+            break;
+    }
+
+    if (lobby_updated && mgr->top >= 0 && mgr->stack[mgr->top]->id == LOBBY_MENU_ID) {
+        update_lobby_menu(mgr);
+    }
+}
+
+void recieve_all_messages(menu_manager *mgr) {
+    uint8_t type, src;
+    uint16_t psz;
+    uint8_t buf[512];
+    while (recv_message(mgr->server_socket, &type, &src, buf, &psz) == 0) {
+        handle_msg(mgr, type, src, psz, buf);
+    }
+}
+
 // handles all incoming lobby-related messages and updates the menu_manager
 // returns true if the lobby state was updated and needs a redraw
-bool process_lobby_messages(menu_manager *mgr) {
-    if (mgr->server_socket < 0) return false;
+void process_server_messages(menu_manager *mgr) {
+    if (mgr->server_socket < 0) return;
 
     fd_set read_fds;
     FD_ZERO(&read_fds);
@@ -148,58 +229,7 @@ bool process_lobby_messages(menu_manager *mgr) {
     struct timeval timeout = {0, 0};
     int activity = select(mgr->server_socket + 1, &read_fds, NULL, NULL, &timeout);
 
-    bool lobby_updated = false;
-
     if (activity > 0 && FD_ISSET(mgr->server_socket, &read_fds)) {
-        uint8_t type, src;
-        uint16_t psz;
-        uint8_t buf[512];
-
-        while (recv_message(mgr->server_socket, &type, &src, buf, &psz) == 0) {
-            switch(type) {
-                case MSG_WELCOME: {
-                    msg_welcome_t *w = (msg_welcome_t*)buf;
-                    for(int i=0; i<8; i++) 
-                        strcpy(mgr->slot_names[i], "(empty)");
-                    int me = w->player_id - 1;
-                    strncpy(mgr->slot_names[me], w->player_name, 31);
-                    uint8_t *p = buf + sizeof(*w);
-                    for(int i = 0; i < w->length && i < MAX_CLIENTS; i++) {
-                        uint8_t pid = p[0];
-                        char *nm = (char*)(p+2);
-                        strncpy(mgr->slot_names[pid-1], nm, 31);
-                        p += 1 + 1 + 30;
-                    }
-                    lobby_updated = true;
-                    break;
-                }
-                case MSG_HELLO: {
-                    msg_hello_t *h = (msg_hello_t*)buf;
-                    strncpy(mgr->slot_names[src-1], h->player_name, 31);
-                    lobby_updated = true;
-                    break;
-                }
-                case MSG_LEAVE: {
-                    strcpy(mgr->slot_names[src - 1], "(empty)");
-                    lobby_updated = true;
-                    break;
-                }
-                case MSG_DISCONNECT: {
-                    strcpy(mgr->slot_names[src-1], "(empty)");
-                    lobby_updated = true;
-                    break;
-                }
-                case MSG_SET_READY: {
-                    bool ready = buf[0];
-                    mgr->slot_ready[src - 1] = ready;
-                    lobby_updated = true;
-                    break;
-                }
-                default:
-                    break;
-            }
-        }
+        recieve_all_messages(mgr);
     }
-    return lobby_updated;
 }
-

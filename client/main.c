@@ -60,16 +60,15 @@ void gameloop(const char *host, int port) {
         ll delta_time = get_delta_micro_s(&now, &last_time);
         last_time = now;
         if (delta_time == 0) delta_time = 1;
+
+        // debug
+        mvprintw(0, 0, "%lld, %d", delta_time, mgr->server_socket);
+        refresh();
     
         int user_input = getch();
-        if (user_input == ERR) user_input = -1;
 
-        bool lobby_updated = process_lobby_messages(mgr);
-
-        if (lobby_updated && mgr->top >= 0 && mgr->stack[mgr->top]->id == LOBBY_MENU_ID) {
-            update_lobby_menu(mgr);
-        }
-
+        process_server_messages(mgr);
+        
         int ret;
         switch(state) {
             case 0:

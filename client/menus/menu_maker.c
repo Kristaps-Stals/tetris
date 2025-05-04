@@ -272,7 +272,7 @@ textbox *make_lobby_menu() {
     
     pos_elem = make_size_info(1, 5, h-2, w-1-5-1);
     next_elem = make_neighbours(-1, -1, -1, -1);
-    info_button = make_button("leave", CLOSE_KEYBINDINGS, next_elem);
+    info_button = make_button("leave", CLOSE_MENU, next_elem);
     elems[name_textbox_cnt+0] = make_element(BUTTON_ID, pos_elem, info_button);
 
     pos_elem = make_size_info(1, 2, 4, 3);
