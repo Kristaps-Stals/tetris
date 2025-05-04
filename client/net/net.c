@@ -95,7 +95,6 @@ int parse_connection_args(int argc, char **argv, const char **host, int *port) {
     return 1;
 }
 
-// Helper to fetch text from a textbox write element (moved from menu_maker)
 char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) {
     textbox **stack = manager->stack;
     int top = manager->top;
@@ -111,7 +110,6 @@ char* fetch_text_from_element(menu_manager *manager, int write_id, int *length) 
     return NULL;
 }
 
-// Moved from menu_maker.c
 void attempt_join_lobby(menu_manager *manager) {
     int ip_len, port_len;
     char *ip_text   = fetch_text_from_element(manager, WRITE_ID_JOIN_IP,   &ip_len);
@@ -134,5 +132,72 @@ void attempt_join_lobby(menu_manager *manager) {
 
     if (ip_text)   free(ip_text);
     if (port_text) free(port_text);
+}
+
+// handles all incoming lobby-related messages and updates the menu_manager
+// returns true if the lobby state was updated and needs a redraw
+bool process_lobby_messages(menu_manager *mgr) {
+    if (mgr->server_socket < 0) return false;
+
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(mgr->server_socket, &read_fds);
+
+    struct timeval timeout = {0, 0};
+    int activity = select(mgr->server_socket + 1, &read_fds, NULL, NULL, &timeout);
+
+    bool lobby_updated = false;
+
+    if (activity > 0 && FD_ISSET(mgr->server_socket, &read_fds)) {
+        uint8_t type, src;
+        uint16_t psz;
+        uint8_t buf[512];
+
+        while (recv_message(mgr->server_socket, &type, &src, buf, &psz) == 0) {
+            switch(type) {
+                case MSG_WELCOME: {
+                    msg_welcome_t *w = (msg_welcome_t*)buf;
+                    for(int i=0; i<8; i++) 
+                        strcpy(mgr->slot_names[i], "(empty)");
+                    int me = w->player_id - 1;
+                    strncpy(mgr->slot_names[me], w->player_name, 31);
+                    uint8_t *p = buf + sizeof(*w);
+                    for(int i = 0; i < w->length && i < MAX_CLIENTS; i++) {
+                        uint8_t pid = p[0];
+                        char *nm = (char*)(p+2);
+                        strncpy(mgr->slot_names[pid-1], nm, 31);
+                        p += 1 + 1 + 30;
+                    }
+                    lobby_updated = true;
+                    break;
+                }
+                case MSG_HELLO: {
+                    msg_hello_t *h = (msg_hello_t*)buf;
+                    strncpy(mgr->slot_names[src-1], h->player_name, 31);
+                    lobby_updated = true;
+                    break;
+                }
+                case MSG_LEAVE: {
+                    strcpy(mgr->slot_names[src - 1], "(empty)");
+                    lobby_updated = true;
+                    break;
+                }
+                case MSG_DISCONNECT: {
+                    strcpy(mgr->slot_names[src-1], "(empty)");
+                    lobby_updated = true;
+                    break;
+                }
+                case MSG_SET_READY: {
+                    bool ready = buf[0];
+                    mgr->slot_ready[src - 1] = ready;
+                    lobby_updated = true;
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    return lobby_updated;
 }
 

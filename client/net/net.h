@@ -17,3 +17,5 @@ int send_hello(int sockfd, const char *client_id, const char *player_name);
 int parse_connection_args(int argc, char **argv, const char **host, int *port);
 void attempt_join_lobby(menu_manager *manager);
 char* fetch_text_from_element(menu_manager *manager, int write_id, int *length);
+
+bool process_lobby_messages(menu_manager *mgr);
