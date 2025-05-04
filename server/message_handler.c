@@ -148,37 +148,35 @@ void message_handler_dispatch(int client_fd) {
     ssize_t n = read(client_fd, hdr, sizeof hdr);
 
     if (n == 0) {
-        // Peer closed cleanly
-        client_manager_remove(client_fd);
+        client_manager_remove(client_fd); // peer closed cleanly
         return;
     }
     if (n < 0) {
-        // Interrupted or no data?  Just skip until next time
+        // skip if no data
         if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
             return;
         }
-        // Real error
+        // real error
         client_manager_remove(client_fd);
         return;
     }
     if (n < (ssize_t)sizeof hdr) {
-        // Partial header => give up on this client
+        // partial header, give up on this client
         client_manager_remove(client_fd);
         return;
     }
 
-    // We have a full header
     uint16_t length = (hdr[0] << 8) | hdr[1];
     uint8_t  type   = hdr[2];
     uint8_t  src    = message_handler_lookup_id(client_fd);
 
-    // Handle a client‑initiated leave
+    // client‑initiated leave
     if (type == MSG_LEAVE) {
-        // Discard any leave payload
+        // discard any leave payload
         int toskip = length - 2;
         char junk[128];
         while (toskip > 0) {
-            ssize_t r = read(client_fd, junk, toskip < sizeof junk ? toskip : sizeof junk);
+            ssize_t r = read(client_fd, junk, (unsigned long)toskip < sizeof junk ? toskip : sizeof junk);
             if (r <= 0) break;
             toskip -= r;
         }
@@ -196,11 +194,9 @@ void message_handler_dispatch(int client_fd) {
         bool ready = (flag != 0);
         client_manager_set_ready(src, ready);
 
-        // Broadcast to everyone
         uint8_t ready_hdr[4] = {0, 3, MSG_SET_READY, src};
         client_manager_broadcast(ready_hdr, 4, &flag, 1);
 
-        // If two are ready, start the game
         if (client_manager_count_ready() == 2) {
             uint8_t stat_hdr[4]    = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
             uint8_t stat_payload[1] = {1};
@@ -209,11 +205,11 @@ void message_handler_dispatch(int client_fd) {
         return;
     }
 
-    // Unknown or unhandled message: skip payload so we stay in sync
+    // unknown or unhandled message: skip
     int toskip = length - 2;
     char buf[256];
     while (toskip > 0) {
-        ssize_t r = read(client_fd, buf, toskip < sizeof buf ? toskip : sizeof buf);
+        ssize_t r = read(client_fd, buf, (unsigned long)toskip < sizeof buf ? toskip : sizeof buf);
         if (r <= 0) break;
         toskip -= r;
     }
