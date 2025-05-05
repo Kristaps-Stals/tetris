@@ -6,7 +6,8 @@ SRCS     = main.c \
            server.c \
            connection.c \
            client_manager.c \
-           message_handler.c
+           message_handler.c \
+           server_manager.c
 
 OBJS     = $(SRCS:.c=.o)
 

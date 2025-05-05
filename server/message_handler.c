@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <errno.h>
+#include "server_manager.h"
 // #include "../client/net/net.h" 
 // TODO: MOVE TO SHARED. you can implement building payloads not with write, but with send_message() from net.h
 
@@ -143,7 +144,49 @@ void message_handler_handle_hello(int client_fd) {
     // 3) register newcomer
     client_manager_add(client_fd, id, hello.player_name);
 }
-void message_handler_dispatch(int client_fd) {
+
+void skip_msg(uint16_t length, int client_fd) {
+    int toskip = length - 2;
+    char buf[256];
+    while (toskip > 0) {
+        int byte_amount = sizeof buf;
+        if (toskip < byte_amount) byte_amount = toskip;
+        ssize_t r = read(client_fd, buf, byte_amount);
+        if (r <= 0) break;
+        toskip -= r;
+    }
+}
+
+void handle_msg_leave(uint16_t length, int client_fd) {
+    skip_msg(length, client_fd);
+    client_manager_remove(client_fd);
+}
+
+void handle_msg_set_ready(uint16_t length, int client_fd, uint8_t src) {
+    if (length != 3) {
+        skip_msg(length, client_fd);
+        return;
+    }
+
+    uint8_t flag;
+    if (read(client_fd, &flag, 1) != 1) {
+        client_manager_remove(client_fd);
+        return;
+    }
+    bool ready = (flag != 0);
+    client_manager_set_ready(src, ready);
+
+    uint8_t ready_hdr[4] = {0, 3, MSG_SET_READY, src};
+    client_manager_broadcast(ready_hdr, 4, &flag, 1);
+
+    if (client_manager_count_ready() == 2) {
+        uint8_t stat_hdr[4]    = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
+        uint8_t stat_payload[1] = {1};
+        client_manager_broadcast(stat_hdr, 4, stat_payload, 1);
+    }
+}
+
+void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     uint8_t hdr[4];
     ssize_t n = read(client_fd, hdr, sizeof hdr);
 
@@ -169,48 +212,18 @@ void message_handler_dispatch(int client_fd) {
     uint16_t length = (hdr[0] << 8) | hdr[1];
     uint8_t  type   = hdr[2];
     uint8_t  src    = message_handler_lookup_id(client_fd);
+    
+    (void)s_manager;
 
-    // client‑initiated leave
-    if (type == MSG_LEAVE) {
-        // discard any leave payload
-        int toskip = length - 2;
-        char junk[128];
-        while (toskip > 0) {
-            ssize_t r = read(client_fd, junk, (unsigned long)toskip < sizeof junk ? toskip : sizeof junk);
-            if (r <= 0) break;
-            toskip -= r;
-        }
-        client_manager_remove(client_fd);
-        return;
-    }
-
-    // SET_READY is exactly 3 bytes: type+source + 1 byte flag
-    if (type == MSG_SET_READY && length == 3) {
-        uint8_t flag;
-        if (read(client_fd, &flag, 1) != 1) {
-            client_manager_remove(client_fd);
-            return;
-        }
-        bool ready = (flag != 0);
-        client_manager_set_ready(src, ready);
-
-        uint8_t ready_hdr[4] = {0, 3, MSG_SET_READY, src};
-        client_manager_broadcast(ready_hdr, 4, &flag, 1);
-
-        if (client_manager_count_ready() == 2) {
-            uint8_t stat_hdr[4]    = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
-            uint8_t stat_payload[1] = {1};
-            client_manager_broadcast(stat_hdr, 4, stat_payload, 1);
-        }
-        return;
-    }
-
-    // unknown or unhandled message: skip
-    int toskip = length - 2;
-    char buf[256];
-    while (toskip > 0) {
-        ssize_t r = read(client_fd, buf, (unsigned long)toskip < sizeof buf ? toskip : sizeof buf);
-        if (r <= 0) break;
-        toskip -= r;
+    switch(type) {
+        case MSG_LEAVE:
+            handle_msg_leave(length, client_fd);
+            break;
+        case MSG_SET_READY:
+            handle_msg_set_ready(length, client_fd, src);
+            break;
+        default:
+            skip_msg(length, client_fd);
+            break;
     }
 }

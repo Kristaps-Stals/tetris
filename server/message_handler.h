@@ -2,6 +2,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "server_manager.h"
 
 // set up ID mapping
 void message_handler_init(void);
@@ -16,4 +17,4 @@ void message_handler_remove_client(int fd);
 void message_handler_handle_hello(int client_fd);
 
 // called whenever a client_fd is ready for reading; processes SET_READY, etc.
-void message_handler_dispatch(int client_fd);
+void message_handler_dispatch(int client_fd, server_manager *s_manager);

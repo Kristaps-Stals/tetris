@@ -29,9 +29,13 @@ int connection_listen(int port) {
     return fd;
 }
 
+
+
+
 void connection_loop(int listen_fd,
                      void (*on_new)(int),
-                     void (*on_data)(int)) {
+                     void (*on_data)(int, server_manager*),
+                     server_manager *s_manager) {
     fd_set rfds;
     FD_ZERO(&rfds);
     FD_SET(listen_fd, &rfds);
@@ -65,7 +69,7 @@ void connection_loop(int listen_fd,
     while (i < client_manager_count() && ready > 0) {
         int fd = client_manager_get(i)->sockfd;
         if (FD_ISSET(fd, &rfds)) {
-            on_data(fd);
+            on_data(fd, s_manager);
             if (client_manager_get(i) && client_manager_get(i)->sockfd == fd) {
                 i++;  // Only increment if the client was NOT removed.
             }

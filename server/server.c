@@ -5,6 +5,7 @@
 #include "message_handler.h"
 #include <signal.h>
 #include <unistd.h>
+#include "server_manager.h"
 
 static int listen_fd;
 
@@ -21,13 +22,16 @@ int server_init(int port) {
 }
 
 void server_run(void) {
+    server_manager *s_manager = make_server_manager();
     while (1) {
         connection_loop(
             listen_fd,
             message_handler_handle_hello,
-            message_handler_dispatch
+            message_handler_dispatch,
+            s_manager
         );
     }
+    free_server_manager(s_manager);
 }
 
 void server_shutdown(void) {
