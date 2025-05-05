@@ -1,6 +1,7 @@
 #pragma once
 #include <ncurses.h>
 #include "difficulty_manager.h"
+#include "score.h"
 
 // actively falling tetromino
 typedef struct tetromino {
@@ -107,3 +108,4 @@ int update_board(tetris_board_update *update);
 void draw_tetris_board(tetris_board *board);
 bool valid_pos(tetromino *test, tetris_board *board);
 tetromino *deepcpy_tetromino(tetromino *a);
+void draw_score_messages(tetris_board *board, score_report *score_rep);

@@ -453,22 +453,7 @@ void new_tetromino_reset(tetris_board *board) {
     board->counters->last_rotation = -1;
 }
 
-// will free the score report
-// returns 1 when game lost due to out of bounds garbage
-int handle_score_report(tetris_board *board, score_report *score_rep) {
-    // add score
-    board->counters->score += score_rep->score;
-
-    // TODO: send garbage
-    send_garbage(board, score_rep->garbage);
-
-    // trigger own garbage if no lines cleared
-    int ret = 0;
-    if (score_rep->lines_cleared == 0) {
-        ret = trigger_garbage(board);
-    }
-
-    // draw messages at bottom of board
+void draw_score_messages(tetris_board *board, score_report *score_rep) {
     WINDOW *win = board->info_manager->clear_win;
     werase(win);
     int w = board->info_manager->clear_w;
@@ -489,8 +474,26 @@ int handle_score_report(tetris_board *board, score_report *score_rep) {
         mvwprintw(win, 2, xpos, "%s", buf);
     }
     wattroff(win, A_BOLD);
-    
     wrefresh(win);
+}
+
+// will free the score report
+// returns 1 when game lost due to out of bounds garbage
+int handle_score_report(tetris_board *board, score_report *score_rep) {
+    // add score
+    board->counters->score += score_rep->score;
+
+    // TODO: send garbage
+    send_garbage(board, score_rep->garbage);
+
+    // trigger own garbage if no lines cleared
+    int ret = 0;
+    if (score_rep->lines_cleared == 0) {
+        ret = trigger_garbage(board);
+    }
+
+    // draw messages at bottom of board
+    draw_score_messages(board, score_rep);
 
     free_score_report(score_rep);
     return ret;
@@ -694,8 +697,6 @@ int update_board(tetris_board_update *update) {
     }
 
     draw_tetris_board(board);
-    update_info_manager(board);
-    
     return ret;
 }
 
@@ -869,6 +870,7 @@ void draw_tetris_board(tetris_board *board) {
     draw_hold(board);
     draw_upcoming(board);
     draw_garbage(board->garbage_manager);
+    update_info_manager(board);
 }
 
 void free_bag_manager(tetris_bag_manager *bag) {

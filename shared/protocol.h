@@ -60,4 +60,4 @@ typedef struct __attribute__((packed)) {
 } msg_sync_board_t;
 
 msg_sync_board_t *make_sync_board_msg(tetris_board *board);
-void apply_sync_board_msg(tetris_board *board, msg_sync_board_t msg);
+void apply_sync_board_msg(tetris_board *board, msg_sync_board_t *msg);

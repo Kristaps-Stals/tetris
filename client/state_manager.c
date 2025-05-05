@@ -131,20 +131,10 @@ void handle_state_game_versus(state_manager *s_manager) {
         s_manager->board_1 = NULL;
         return;
     }
-
-    upd = malloc(sizeof(tetris_board_update));
-    upd->board = s_manager->board_2;
-    upd->delta_time = s_manager->delta_time;
-    upd->user_input = s_manager->user_input;
-    ret = update_board(upd);
-    free(upd);
-    if (ret == 1) {
-        s_manager->state = STATE_MENU;
-        open_menu(s_manager->menu_manager, make_endscreen(s_manager->board_1));
-        if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
-        s_manager->board_1 = NULL;
-        return;
-    }
+    
+    msg_sync_board_t *msg = make_sync_board_msg(s_manager->board_1);
+    apply_sync_board_msg(s_manager->board_2, msg);
+    free(msg);
 }
 
 void handle_state(state_manager *s_manager) {
