@@ -7,6 +7,8 @@ enum {
 
 typedef struct {
     int state;
+    int player_1, player_2;
+    int player_1_ready, player_2_ready;
 } server_manager;
 
 server_manager* make_server_manager();

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "../client/tetris/board.h"
+#include "../server/server_manager.h"
 
 typedef enum {
     MSG_HELLO         = 0x00,
@@ -12,6 +13,9 @@ typedef enum {
     MSG_ERROR         = 0x06,
 
     MSG_SET_READY     = 0x10,
+    MSG_MAKE_PLAYER   = 0x11, // request to become a player
+    MSG_UNMAKE_PLAYER = 0x12, // request to unbecome a player
+    MSG_SYNC_LOBBY    = 0x13, // sync lobby information
 
     MSG_REQ_SYNC      = 0x18,
     MSG_MOVE          = 0x19,
@@ -30,21 +34,27 @@ typedef enum {
 #define PLAYER_ID_BROADCAST 255
 
 #define MAX_CLIENTS 8
+#define MAX_NAME_LEN 30
 
 // HELLO
 typedef struct __attribute__((packed)) {
     char client_id[20];
-    char player_name[30];
+    char player_name[MAX_NAME_LEN];
 } msg_hello_t;
-
 
 // WELCOME
 typedef struct __attribute__((packed)) {
     uint8_t player_id;
     uint8_t game_status;
     uint8_t length;
-    char player_name[30];
+    char player_name[MAX_NAME_LEN];
 } msg_welcome_t;
+
+typedef struct __attribute__((packed)) {
+    char player_names[MAX_CLIENTS][MAX_NAME_LEN];
+    uint8_t player_1, player_2;
+    uint8_t player_1_ready, player_2_ready;
+} msg_sync_lobby_t;
 
 typedef struct __attribute__((packed)) {
     int player_id;

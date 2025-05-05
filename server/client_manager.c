@@ -67,9 +67,6 @@ void client_manager_remove(int sockfd) {
     message_handler_remove_client(sockfd);
 }
 
-
-
-
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
                               const uint8_t *payload, int payload_len) {
     for (int i = 0; i < count; i++) {

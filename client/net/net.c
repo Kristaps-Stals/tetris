@@ -169,36 +169,43 @@ void handle_msg_set_ready(menu_manager *mgr, uint8_t *buf, uint8_t src) {
     mgr->slot_ready[src - 1] = ready;
 }
 
+void handle_msg_lobby_sync(menu_manager *mgr, uint8_t *buf, uint8_t src) {
+    (void)src;
+    msg_sync_lobby_t *msg = (msg_sync_lobby_t*)buf;
+    for (int i = 0; i < 8; i++) {
+        strcpy(mgr->slot_names[i], msg->player_names[i]);
+    }
+}
+
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
     (void)psz; // unused for now?
 
     switch(type) {
-        case MSG_WELCOME: {
+        case MSG_WELCOME:
             handle_msg_welcome(mgr, buf);
             lobby_updated = true;
             break;
-        }
-        case MSG_HELLO: {
+        case MSG_HELLO:
             handle_msg_hello(mgr, buf, src);
             lobby_updated = true;
             break;
-        }
-        case MSG_LEAVE: {
+        case MSG_LEAVE:
             handle_msg_leave(mgr, src);
             lobby_updated = true;
             break;
-        }
-        case MSG_DISCONNECT: {
+        case MSG_DISCONNECT:
             handle_msg_disconnect(mgr, src);
             lobby_updated = true;
             break;
-        }
-        case MSG_SET_READY: {
+        case MSG_SET_READY:
             handle_msg_set_ready(mgr, buf, src);
             lobby_updated = true;
             break;
-        }
+        case MSG_SYNC_LOBBY:
+            handle_msg_lobby_sync(mgr, buf, src);
+            lobby_updated = true;
+            break;
         default:
             break;
     }
@@ -211,7 +218,7 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
 void recieve_all_messages(menu_manager *mgr) {
     uint8_t type, src;
     uint16_t psz;
-    uint8_t buf[512];
+    uint8_t buf[1024];
     while (recv_message(mgr->server_socket, &type, &src, buf, &psz) == 0) {
         handle_msg(mgr, type, src, psz, buf);
     }

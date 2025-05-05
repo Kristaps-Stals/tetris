@@ -51,6 +51,23 @@ void message_handler_remove_client(int fd) {
     }
 }
 
+msg_sync_lobby_t *make_sync_lobby_msg(server_manager *s_manager) {
+    msg_sync_lobby_t *msg = malloc(sizeof(msg_sync_lobby_t));
+    msg->player_1 = s_manager->player_1;
+    msg->player_2 = s_manager->player_2;
+    msg->player_1_ready = 0;
+    msg->player_2_ready = 0;
+    for (int i = 0; i < 8; i++) {
+        const client_t *client = client_manager_get(i);
+        if (client == NULL) {
+            sprintf(msg->player_names[i], "%s", "NULL");
+            continue;
+        }
+        sprintf(msg->player_names[i], "%s", client->name);
+    }
+    return msg;
+}
+
 void message_handler_handle_hello(int client_fd) {
     uint8_t hdr[4];
     if (read(client_fd, hdr, 4) != 4) {
@@ -186,6 +203,17 @@ void handle_msg_set_ready(uint16_t length, int client_fd, uint8_t src) {
     }
 }
 
+void handle_msg_make_player(uint16_t length, int client_fd, uint8_t src, server_manager *s_manager) {
+    if (s_manager->player_1 == -1) {
+        
+        return;
+    }
+    if (s_manager->player_2 == -1) {
+
+        return;
+    }
+}
+
 void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     uint8_t hdr[4];
     ssize_t n = read(client_fd, hdr, sizeof hdr);
@@ -221,6 +249,9 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             break;
         case MSG_SET_READY:
             handle_msg_set_ready(length, client_fd, src);
+            break;
+        case MSG_MAKE_PLAYER:
+            handle_msg_make_player(length, client_fd, src, s_manager);
             break;
         default:
             skip_msg(length, client_fd);

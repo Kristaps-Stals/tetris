@@ -24,6 +24,7 @@ int server_init(int port) {
 void server_run(void) {
     server_manager *s_manager = make_server_manager();
     while (1) {
+        handle_server(s_manager);
         connection_loop(
             listen_fd,
             message_handler_handle_hello,
