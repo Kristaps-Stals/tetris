@@ -14,7 +14,7 @@ uint8_t message_handler_lookup_id(int fd);
 void message_handler_remove_client(int fd);
 
 // called immediately after accept(); does HELLO→WELCOME handshake & registers client
-void message_handler_handle_hello(int client_fd);
+void message_handler_handle_hello(int client_fd, server_manager *s_manager);
 
 // called whenever a client_fd is ready for reading; processes SET_READY, etc.
 void message_handler_dispatch(int client_fd, server_manager *s_manager);

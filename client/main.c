@@ -61,8 +61,8 @@ void gameloop(const char *host, int port) {
         if (delta_time == 0) delta_time = 1;
 
         // debug
-        mvprintw(0, 0, "%ld, %d", delta_time, state->menu_manager->server_socket);
-        refresh();
+        // mvprintw(0, 0, "%ld, %d", delta_time, state->menu_manager->server_socket);
+        // refresh();
 
         int user_input = getch();
 

@@ -25,7 +25,7 @@ int connection_listen(int port) {
         return -1;
     }
 
-    printf("Server listening on port %d\n", port);
+    printf("[connection] Server listening on port %d\n", port);
     return fd;
 }
 
@@ -33,7 +33,7 @@ int connection_listen(int port) {
 
 
 void connection_loop(int listen_fd,
-                     void (*on_new)(int),
+                     void (*on_new)(int, server_manager*),
                      void (*on_data)(int, server_manager*),
                      server_manager *s_manager) {
     fd_set rfds;
@@ -41,13 +41,17 @@ void connection_loop(int listen_fd,
     FD_SET(listen_fd, &rfds);
     int maxfd = listen_fd;
 
-    for (int i = 0; i < client_manager_count(); i++) {
-        int fd = client_manager_get(i)->sockfd;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        const client_t *client = client_manager_get(i);
+        if (client == NULL || client->exists == false) continue;
+        int fd = client->sockfd;
         FD_SET(fd, &rfds);
         if (fd > maxfd) maxfd = fd;
+        // printf("[connection] adding %d (max %d)\n", fd, maxfd);
     }
 
-    int ready = select(maxfd + 1, &rfds, NULL, NULL, NULL);
+    struct timeval timeout = {0, 0};
+    int ready = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
     if (ready < 0) return;
 
     if (FD_ISSET(listen_fd, &rfds)) {
@@ -57,25 +61,21 @@ void connection_loop(int listen_fd,
                                (struct sockaddr*)&cliaddr,
                                &addrlen);
         if (client_fd >= 0) {
-            printf("Accepted %s:%d\n",
+            printf("[connection] Accepted %s:%d\n",
                    inet_ntoa(cliaddr.sin_addr),
                    ntohs(cliaddr.sin_port));
-            on_new(client_fd);
+            on_new(client_fd, s_manager);
         }
-        if (--ready <= 0) return;
+        ready--;
     }
 
-    int i = 0;
-    while (i < client_manager_count() && ready > 0) {
-        int fd = client_manager_get(i)->sockfd;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        const client_t *client = client_manager_get(i);
+        if (client == NULL || client->exists == false) continue;
+        int fd = client->sockfd;
         if (FD_ISSET(fd, &rfds)) {
             on_data(fd, s_manager);
-            if (client_manager_get(i) && client_manager_get(i)->sockfd == fd) {
-                i++;  // Only increment if the client was NOT removed.
-            }
             ready--;
-        } else {
-            i++; // increment normally if fd was not set
         }
     }
 }

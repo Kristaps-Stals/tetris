@@ -17,9 +17,14 @@ menu_manager *make_menu_manager() {
     manager->is_editing = false;
     manager->server_socket = -1; 
     for (int i = 0; i < 8; i++) {
-        manager->slot_ready[i] = false;
+        // manager->slot_ready[i] = false;
         strcpy(manager->slot_names[i], "(empty)");
     }
+    manager->player_1 = -1;
+    manager->player_1_ready = 0;
+    manager->player_2 = -1;
+    manager->player_2_ready = 0;
+    manager->player_id = -1;
     manager->stack[0] = make_main_menu();
     return manager;
 }
@@ -246,7 +251,7 @@ textbox *make_lobby_menu() {
     size_info *pos = make_size_info(h, w, y, x);
 
     int name_textbox_cnt = 10;
-    int ELEM_CNT = name_textbox_cnt+5;
+    int ELEM_CNT = name_textbox_cnt+6;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     int max_name_len = 30;
@@ -271,7 +276,7 @@ textbox *make_lobby_menu() {
     elems[name_textbox_cnt-1] = make_element(TEXT_ID, pos_elem, info_text);
     
     pos_elem = make_size_info(1, 5, h-2, w-1-5-1);
-    next_elem = make_neighbours(-1, -1, -1, -1);
+    next_elem = make_neighbours(-1, name_textbox_cnt+5, -1, name_textbox_cnt+5);
     info_button = make_button("leave", CLOSE_MENU, next_elem);
     elems[name_textbox_cnt+0] = make_element(BUTTON_ID, pos_elem, info_button);
 
@@ -291,11 +296,28 @@ textbox *make_lobby_menu() {
     info_text = make_text("Players:");
     elems[name_textbox_cnt+4] = make_element(TEXT_ID, pos_elem, info_text);
 
+    pos_elem = make_size_info(1, 14, h-2, w-1-5-1-14-1);
+    next_elem = make_neighbours(-1, name_textbox_cnt+0, -1, name_textbox_cnt+0);
+    info_button = make_button("toggle status", TOGGLE_PLAYER_STATE, next_elem);
+    elems[name_textbox_cnt+5] = make_element(BUTTON_ID, pos_elem, info_button);
+
     return make_textbox(pos, elems, ELEM_CNT, name_textbox_cnt+0, LOBBY_MENU_ID);
 }
 void update_lobby_menu(menu_manager *manager) {
-    for (int i = 0; i < 8; i++) { // TODO: fix hardcoded max player
+    for (int i = 0; i < 8; i++) { 
         change_elem_text(manager, i, manager->slot_names[i]);
+    }
+
+    if (manager->player_1 != -1) {
+        change_elem_text(manager, 8, manager->slot_names[manager->player_1]);
+    } else {
+        change_elem_text(manager, 8, "(empty)");
+    }
+
+    if (manager->player_2 != -1) {
+        change_elem_text(manager, 9, manager->slot_names[manager->player_2]);
+    } else {
+        change_elem_text(manager, 9, "(empty)");
     }
 }
 
@@ -330,8 +352,6 @@ void pop_menu_stack(menu_manager *manager) {
           reason,
           sizeof(reason)             // strlen(reason) + 1
         );
-    
-        
         close(manager->server_socket);
         manager->server_socket = -1;
     }
@@ -382,6 +402,10 @@ void toggle_ready_state(menu_manager *manager) {
     send_message(manager->server_socket, MSG_SET_READY, PLAYER_ID_BROADCAST, &flag, 1);
 }
 
+void toggle_player_state(menu_manager *manager) {
+    send_message(manager->server_socket, MSG_TOGGLE_PLAYER, PLAYER_ID_BROADCAST, NULL, 0);
+}
+
 // returns signals for main gameloop
 // returns 1 to start game
 int manage_menus(menu_manager *manager, int user_input) {
@@ -416,6 +440,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case TOGGLE_READY:
             toggle_ready_state(manager);
+            break;
+        case TOGGLE_PLAYER_STATE:
+            toggle_player_state(manager);
             break;
     }
 

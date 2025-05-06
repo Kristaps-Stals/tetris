@@ -13,9 +13,8 @@ typedef enum {
     MSG_ERROR         = 0x06,
 
     MSG_SET_READY     = 0x10,
-    MSG_MAKE_PLAYER   = 0x11, // request to become a player
-    MSG_UNMAKE_PLAYER = 0x12, // request to unbecome a player
-    MSG_SYNC_LOBBY    = 0x13, // sync lobby information
+    MSG_TOGGLE_PLAYER = 0x11, // request to become a player or unbecome a player
+    MSG_SYNC_LOBBY    = 0x12, // sync lobby information
 
     MSG_REQ_SYNC      = 0x18,
     MSG_MOVE          = 0x19,
@@ -44,15 +43,14 @@ typedef struct __attribute__((packed)) {
 
 // WELCOME
 typedef struct __attribute__((packed)) {
-    uint8_t player_id;
+    int8_t player_id;
     uint8_t game_status;
-    uint8_t length;
     char player_name[MAX_NAME_LEN];
 } msg_welcome_t;
 
 typedef struct __attribute__((packed)) {
     char player_names[MAX_CLIENTS][MAX_NAME_LEN];
-    uint8_t player_1, player_2;
+    int8_t player_1, player_2;
     uint8_t player_1_ready, player_2_ready;
 } msg_sync_lobby_t;
 
@@ -69,5 +67,5 @@ typedef struct __attribute__((packed)) {
     int queued_garbage;   
 } msg_sync_board_t;
 
-msg_sync_board_t *make_sync_board_msg(tetris_board *board);
-void apply_sync_board_msg(tetris_board *board, msg_sync_board_t *msg);
+uint8_t *make_hdr(uint16_t payload_length, uint8_t type, uint8_t src);
+void free_hdr(uint8_t *hdr);

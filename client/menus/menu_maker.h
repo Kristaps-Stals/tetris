@@ -13,7 +13,8 @@ enum {
     CLOSE_KEYBINDINGS = 6,
     OPEN_JOIN = 7,
     ATTEMPT_JOIN = 8,
-    TOGGLE_READY = 9
+    TOGGLE_READY = 9,
+    TOGGLE_PLAYER_STATE = 10,
 };
 
 enum {
@@ -39,10 +40,11 @@ typedef struct menu_manager {
     textbox **stack;
     int top, max_stack;
     bool is_editing;
-    int       server_socket;
-    char      slot_names[8][32];
-    bool      slot_ready[8]; // new field to track readiness
-
+    int server_socket;
+    int player_id;
+    char slot_names[8][32];
+    int player_1, player_2;
+    int player_1_ready, player_2_ready;
 } menu_manager;
 
 bool open_menu(menu_manager *manager, textbox *new_menu);
@@ -52,6 +54,7 @@ textbox *make_main_menu();
 textbox *make_settings_menu();
 textbox *make_endscreen(tetris_board *board);
 textbox *make_lobby_menu();
+void pop_menu_stack(menu_manager *manager);
 void update_lobby_menu(menu_manager *manager);
 int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
 int update_menus(menu_manager *manager, int user_input);

@@ -17,7 +17,6 @@ int server_init(int port) {
     if (listen_fd < 0) return -1;
 
     client_manager_init();
-    message_handler_init();
     return 0;
 }
 

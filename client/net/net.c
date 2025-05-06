@@ -9,6 +9,7 @@
 #include <../shared/protocol.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include "../menus/menu_maker.h"
 
 char *copy_text(const char *src);
 
@@ -32,13 +33,13 @@ int connect_to_server(const char *ip, int port) {
 }
 
 int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payload, uint16_t payload_size) {
-    uint16_t length = 1 + 1 + payload_size; // type + player_id + payload
-    uint8_t *buffer = malloc(2 + length);
+    uint16_t length = 4 + payload_size; // header + payload
+    uint8_t *buffer = malloc(length);
     if (!buffer) return -1;
 
     // length in big-endian
-    buffer[0] = (length >> 8) & 0xFF;
-    buffer[1] = length & 0xFF;
+    buffer[0] = (payload_size >> 8) & 0xFF;
+    buffer[1] = payload_size & 0xFF;
     buffer[2] = type;
     buffer[3] = player_id;
 
@@ -46,7 +47,7 @@ int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payloa
         memcpy(buffer + 4, payload, payload_size);
     }
 
-    int sent = send(sockfd, buffer, 2 + length, 0);
+    int sent = send(sockfd, buffer, length, 0);
     free(buffer);
     return sent;
 }
@@ -59,6 +60,7 @@ int send_hello(int sockfd, const char *client_id, const char *player_name) {
 }
 
 int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_payload, uint16_t *out_payload_size) {
+    if (sockfd < 0) return -1;
     uint8_t hdr[4];
     ssize_t r = read(sockfd, hdr, 4);
     if (r != 4) return -1;
@@ -66,7 +68,7 @@ int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_p
     *out_type   = hdr[2];
     *out_source = hdr[3];
 
-    uint16_t payload_len = length - 2;
+    uint16_t payload_len = length;
     if (payload_len > 0 && out_payload && out_payload_size) {
         r = read(sockfd, out_payload, payload_len);
         if (r != payload_len) return -1;
@@ -122,7 +124,7 @@ void attempt_join_lobby(menu_manager *manager) {
         if (sockfd < 0) {
             mvprintw(0, 0, "Failed to connect to %s:%d", ip_text, port);
             refresh();
-            sleep(2);
+            sleep(1);
         } else {
             fcntl(sockfd, F_SETFL, O_NONBLOCK);
             manager->server_socket = sockfd;
@@ -137,18 +139,14 @@ void attempt_join_lobby(menu_manager *manager) {
 }
 
 void handle_msg_welcome(menu_manager *mgr, uint8_t *buf) {
-    msg_welcome_t *w = (msg_welcome_t*)buf;
-    for(int i=0; i<8; i++) 
-        strcpy(mgr->slot_names[i], "(empty)");
-    int me = w->player_id - 1;
-    strncpy(mgr->slot_names[me], w->player_name, 31);
-    uint8_t *p = buf + sizeof(*w);
-    for(int i = 0; i < w->length && i < MAX_CLIENTS; i++) {
-        uint8_t pid = p[0];
-        char *nm = (char*)(p+2);
-        strncpy(mgr->slot_names[pid-1], nm, 31);
-        p += 1 + 1 + 30;
+    msg_welcome_t *msg = (msg_welcome_t*)buf;
+    for(int i=0; i<8; i++){
+        sprintf(mgr->slot_names[i], "(empty)");
     }
+    // int me = w->player_id;
+    // sprintf(mgr->slot_names[me], "%s", w->player_name);
+    mgr->player_id = msg->player_id;
+    mvprintw(1, 1, "%d", mgr->player_id);
 }
 
 void handle_msg_hello(menu_manager *mgr, uint8_t *buf, uint8_t src) {
@@ -157,29 +155,45 @@ void handle_msg_hello(menu_manager *mgr, uint8_t *buf, uint8_t src) {
 }
 
 void handle_msg_leave(menu_manager *mgr, uint8_t src) {
-    strcpy(mgr->slot_names[src - 1], "(empty)");
+    (void)mgr;
+    (void)src;
+    // strcpy(mgr->slot_names[src - 1], "(empty)");
 }
 
 void handle_msg_disconnect(menu_manager *mgr, uint8_t src) {
-    strcpy(mgr->slot_names[src-1], "(empty)");
+    (void)src;
+    if (mgr->stack[mgr->top]->id == LOBBY_MENU_ID) pop_menu_stack(mgr);
 }
 
 void handle_msg_set_ready(menu_manager *mgr, uint8_t *buf, uint8_t src) {
-    bool ready = buf[0];
-    mgr->slot_ready[src - 1] = ready;
+    // bool ready = buf[0];
+    // mgr->slot_ready[src - 1] = ready;
+    (void)mgr;
+    (void)buf;
+    (void)src;
 }
 
 void handle_msg_lobby_sync(menu_manager *mgr, uint8_t *buf, uint8_t src) {
     (void)src;
     msg_sync_lobby_t *msg = (msg_sync_lobby_t*)buf;
-    for (int i = 0; i < 8; i++) {
+
+    for (int i = 0; i < 8; i++) {  
         strcpy(mgr->slot_names[i], msg->player_names[i]);
     }
+    mgr->player_1 = msg->player_1;
+    mgr->player_2 = msg->player_2;
+    mgr->player_1_ready = msg->player_1_ready;
+    mgr->player_2_ready = msg->player_2_ready;
+    mvprintw(0, 0, "%d\n", mgr->player_1);
+    refresh();
 }
 
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
     (void)psz; // unused for now?
+    // mvprintw(2, 2, "%d, %d", tmp, type);
+    // refresh();
+    // tmp++;
 
     switch(type) {
         case MSG_WELCOME:
@@ -219,6 +233,7 @@ void recieve_all_messages(menu_manager *mgr) {
     uint8_t type, src;
     uint16_t psz;
     uint8_t buf[1024];
+
     while (recv_message(mgr->server_socket, &type, &src, buf, &psz) == 0) {
         handle_msg(mgr, type, src, psz, buf);
     }

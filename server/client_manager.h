@@ -5,10 +5,9 @@
 #include "protocol.h"
 
 typedef struct {
+    bool     exists;
     int      sockfd;
-    uint8_t  player_id;
     char     name[30];
-    bool     ready;
 } client_t;
 
 // initialize client table
@@ -23,16 +22,13 @@ int client_manager_count(void); // active clients
 const client_t* client_manager_get(int index);
 
 // add a new client (after successful HELLO)
-void client_manager_add(int sockfd, uint8_t player_id, const char *name);
+bool client_manager_add(int sockfd, const char *name);
 
 // remove a client (on disconnect or error)
-void client_manager_remove(int sockfd);
+void client_manager_remove(int sockfd, server_manager *s_manager);
 
 // send a raw [hdr,len=hdr_len] + [payload,len=payload_len] to all clients
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len, const uint8_t *payload, int payload_len);
 
-// update client’s ready flag
-void client_manager_set_ready(uint8_t player_id, bool ready);
-
-// count how many clients are ready
-int  client_manager_count_ready(void);
+// gets player index from sockfd, returns -1 if not found
+int8_t get_player_id_from_fd(int sockfd);
