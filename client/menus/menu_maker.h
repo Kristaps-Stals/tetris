@@ -15,6 +15,7 @@ enum {
     ATTEMPT_JOIN = 8,
     TOGGLE_READY = 9,
     TOGGLE_PLAYER_STATE = 10,
+    SAVE_SETTINGS = 11
 };
 
 enum {

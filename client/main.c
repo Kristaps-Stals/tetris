@@ -16,6 +16,7 @@
 #include <sys/select.h>
 #include <fcntl.h>
 #include "state_manager.h"
+#include "menus/settings.h"
 
 typedef long long ll;
 
@@ -41,6 +42,7 @@ void gameloop(const char *host, int port) {
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
     init_binds();
+    init_settings();
     state_manager *state = make_state_manager();
     // mvprintw(LINES-9, 0, "Game:");
     // mvprintw(LINES-8, 0, "  Arrow keys to move right/down/left");

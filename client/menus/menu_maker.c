@@ -8,6 +8,10 @@
 #include "../net/net.h" 
 #include <unistd.h>    
 #include <fcntl.h>
+#include "settings.h"
+
+// move last_saved_nick to file scope
+static char last_saved_nick[NICKNAME_MAX_LEN] = "";
 
 menu_manager *make_menu_manager() {
     menu_manager *manager = malloc(sizeof(menu_manager));
@@ -81,28 +85,45 @@ textbox *make_settings_menu() {
     int y = (LINES-h)/2;
 
     size_info *pos = make_size_info(h, w, y, x);
-    int ELEM_CNT = 4;
+    int ELEM_CNT = 7;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     size_info *pos_text1 = make_size_info(1, 9, 0, 2);
     textbox_text *info_text1 = make_text("Settings");
     elems[0] = make_element(TEXT_ID, pos_text1, info_text1, NULL, A_NORMAL);
 
+    // nickname
+    size_info *pos_nick_label = make_size_info(1, 8, 2, 3);
+    textbox_text *info_nick_label = make_text("Nickname");
+    elems[1] = make_element(TEXT_ID, pos_nick_label, info_nick_label, NULL, A_NORMAL);
+
+    size_info *pos_nick_write = make_size_info(1, 16, 2, 13);
+    textbox_neighbours *next_nick_write = make_neighbours(4, -1, 4, -1);
+    textbox_write *info_nick_write = make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN-1, 1000);
+    elems[2] = make_element(WRITE_ELEMENT_ID, pos_nick_write, info_nick_write, next_nick_write, A_NORMAL);
+
+    // save button
+    size_info *pos_save_button = make_size_info(1, 4, h-2, w-1-4-6);
+    textbox_neighbours *next_save_button = make_neighbours(5, 4, 5, 4);
+    textbox_button *info_save_button = make_button("save", 1001);
+    elems[3] = make_element(BUTTON_ID, pos_save_button, info_save_button, next_save_button, A_NORMAL);
+    elems[3]->visible = false; // initially grayed out
+
     size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4-1);
-    textbox_neighbours *next_button1 = make_neighbours(3, -1, 3, -1);
+    textbox_neighbours *next_button1 = make_neighbours(3, 3, 3, 3);
     textbox_button *info_button1 = make_button("back", CLOSE_MENU);
-    elems[1] = make_element(BUTTON_ID, pos_button1, info_button1, next_button1, A_NORMAL);
+    elems[4] = make_element(BUTTON_ID, pos_button1, info_button1, next_button1, A_NORMAL);
 
     size_info *pos_text2 = make_size_info(1, 11, 1, 3);
     textbox_text *info_text2 = make_text("Keybindings");
-    elems[2] = make_element(TEXT_ID, pos_text2, info_text2, NULL, A_NORMAL);
+    elems[5] = make_element(TEXT_ID, pos_text2, info_text2, NULL, A_NORMAL);
 
     size_info *pos_button2 = make_size_info(1, 4, 1, w-1-4-2);
-    textbox_neighbours *next_button2 = make_neighbours(1, -1, 1, -1);
+    textbox_neighbours *next_button2 = make_neighbours(4, -1, 4, -1);
     textbox_button *info_button2 = make_button("edit", OPEN_KEYBINDINGS);
-    elems[3] = make_element(BUTTON_ID, pos_button2, info_button2, next_button2, A_NORMAL);
+    elems[6] = make_element(BUTTON_ID, pos_button2, info_button2, next_button2, A_NORMAL);
 
-    return make_textbox(pos, elems, ELEM_CNT, 3, SETTINGS_MENU_ID);
+    return make_textbox(pos, elems, ELEM_CNT, 2, SETTINGS_MENU_ID);
 }
 
 textbox *make_endscreen(tetris_board *board) {
@@ -361,6 +382,35 @@ void update_lobby_menu(menu_manager *manager) {
     }
 }
 
+void update_save_button_visibility(menu_manager *manager) {
+    if (manager->stack[manager->top]->id != SETTINGS_MENU_ID) return;
+    int len = 0;
+    char* new_nick = fetch_text_from_element(manager, 1000, &len);
+    bool changed = false;
+    if (new_nick && len > 0) {
+        if (strncmp(last_saved_nick, new_nick, NICKNAME_MAX_LEN) != 0) {
+            changed = true;
+        }
+    }
+    change_elem_visibility(manager, 3, changed);
+    if (new_nick) free(new_nick);
+}
+
+// Helper to save nickname if changed and update last_saved_nick
+void save_nickname_if_changed(menu_manager *manager, bool update_button) {
+    int len = 0;
+    char* new_nick = fetch_text_from_element(manager, 1000, &len);
+    if (new_nick && len > 0) {
+        if (strncmp(last_saved_nick, new_nick, NICKNAME_MAX_LEN) != 0) {
+            set_nickname(new_nick);
+            save_settings();
+            strncpy(last_saved_nick, new_nick, NICKNAME_MAX_LEN);
+        }
+        free(new_nick);
+    }
+    if (update_button) update_save_button_visibility(manager);
+}
+
 // tries to open <new_menu>, returns true on success, false on failure
 bool open_menu(menu_manager *manager, textbox *new_menu) {
     if (manager->top == manager->max_stack) {
@@ -437,6 +487,11 @@ void toggle_player_state(menu_manager *manager) {
 // returns signals for main gameloop
 // returns 1 to start game
 int manage_menus(menu_manager *manager, int user_input) {
+    // before handling input, update save button visibility 
+    if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
+        update_save_button_visibility(manager);
+    }
+
     int update_result = update_menus(manager, user_input);
 
     int ret = 0;
@@ -445,7 +500,10 @@ int manage_menus(menu_manager *manager, int user_input) {
             ret = UPDSTATE_SOLO;
             break;
         case OPEN_SETTINGS:
+            // set last_saved_nick to current nickname
+            strncpy(last_saved_nick, get_nickname(), NICKNAME_MAX_LEN);
             open_menu(manager, make_settings_menu());
+            update_save_button_visibility(manager);
             break;
         case OPEN_KEYBINDINGS:
             open_menu(manager, make_keybind_menu());
@@ -471,6 +529,16 @@ int manage_menus(menu_manager *manager, int user_input) {
             break;
         case TOGGLE_PLAYER_STATE:
             toggle_player_state(manager);
+            break;
+        case SAVE_SETTINGS: // TODO: potentially refine so less code inside two blocks?
+            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) { // only save if in settings menu
+                save_nickname_if_changed(manager, true);
+            }
+            break;
+        case CLOSE_MENU:
+            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
+                save_nickname_if_changed(manager, false);
+            }
             break;
     }
 
