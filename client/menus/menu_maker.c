@@ -105,7 +105,7 @@ textbox *make_settings_menu() {
     // save button
     size_info *pos_save_button = make_size_info(1, 4, h-2, w-1-4-6);
     textbox_neighbours *next_save_button = make_neighbours(5, 4, 5, 4);
-    textbox_button *info_save_button = make_button("save", 1001);
+    textbox_button *info_save_button = make_button("save", SAVE_SETTINGS);
     elems[3] = make_element(BUTTON_ID, pos_save_button, info_save_button, next_save_button, A_NORMAL);
     elems[3]->visible = false; // initially grayed out
 
@@ -530,9 +530,10 @@ int manage_menus(menu_manager *manager, int user_input) {
         case TOGGLE_PLAYER_STATE:
             toggle_player_state(manager);
             break;
-        case SAVE_SETTINGS: // TODO: potentially refine so less code inside two blocks?
-            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) { // only save if in settings menu
+        case SAVE_SETTINGS: // todo maybe move this if to somewhere else..
+            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
                 save_nickname_if_changed(manager, true);
+                pop_menu_stack(manager); // close settings after save
             }
             break;
         case CLOSE_MENU:

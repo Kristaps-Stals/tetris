@@ -20,10 +20,16 @@ const char* get_nickname() {
 void load_settings() {
     FILE* f = fopen(settings_file, "r");
     if (!f) return;
-    char buf[NICKNAME_MAX_LEN];
+    char buf[NICKNAME_MAX_LEN + 16];
     if (fgets(buf, sizeof(buf), f)) {
-        buf[strcspn(buf, "\r\n")] = 0;
-        set_nickname(buf);
+        // format: nickname:<value>
+        char *prefix = "nickname:";
+        size_t prefix_len = strlen(prefix);
+        if (strncmp(buf, prefix, prefix_len) == 0) {
+            char *val = buf + prefix_len;
+            val[strcspn(val, "\r\n")] = 0;
+            set_nickname(val);
+        }
     }
     fclose(f);
 }
@@ -32,7 +38,7 @@ void save_settings() {
     mkdir("config", 0777); // ensure config directory exists
     FILE* f = fopen(settings_file, "w");
     if (!f) return;
-    fprintf(f, "%s\n", nickname);
+    fprintf(f, "nickname:%s\n", nickname);
     fclose(f);
 }
 
