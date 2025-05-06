@@ -49,6 +49,7 @@ typedef struct textbox_element {
     void *info;
     size_info *pos;
     textbox_neighbours *neighbour; // which element to go to if active element
+    attr_t attributes;
 } textbox_element;
 
 typedef struct textbox {
@@ -72,7 +73,7 @@ textbox_keybind_select *make_keybind_select(char *text_editing, int keybind_id);
 
 textbox_write *make_write_elem(char* default_text, int max_len, int write_id);
 
-textbox_element *make_element(int type, size_info *pos, void *element_info, textbox_neighbours *neighbours);
+textbox_element *make_element(int type, size_info *pos, void *element_info, textbox_neighbours *neighbours, attr_t attributes);
 
 textbox *make_textbox(size_info *pos, textbox_element **element_list, int element_count, int default_element, int id);
 void free_textbox(textbox *box);

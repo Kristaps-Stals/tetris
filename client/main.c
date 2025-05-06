@@ -121,6 +121,7 @@ int main(int argc, char **argv) {
     init_pair(10, COLOR_RED, COLOR_BLACK); // used for warning
     init_pair(11, COLOR_RED, COLOR_RED); // used for armed garbage
     init_pair(12, 65, 65); // used for unarmed garbage
+    init_pair(13, COLOR_GREEN, COLOR_BLACK); // used for ready up text 
 
     cbreak(); // or raw(), disables input buffering
     // raw(); // disables signals like ctrl+c

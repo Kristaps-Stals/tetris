@@ -61,3 +61,6 @@ int manage_menus(menu_manager *manager, int user_input);
 
 int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
 int change_elem_visibility(menu_manager *menu_manager_, int elem_id, bool visible);
+int add_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes);
+int remove_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes);
+int set_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes);

@@ -313,7 +313,14 @@ int update_write_elem(textbox *tbox, int user_input) {
 
 // ELEMENT
 // pass NULL to neighbours if dont want any
-textbox_element *make_element(int type, size_info *pos, void* element_info, textbox_neighbours *neighbours) {
+// pass A_NORMAL to attributes if dont want any
+textbox_element *make_element(
+    int type, 
+    size_info *pos, 
+    void* element_info, 
+    textbox_neighbours *neighbours, 
+    attr_t attributes
+) {
     textbox_element *elem = malloc(sizeof(textbox_element));
     elem->type = type;
     elem->pos = pos;
@@ -324,6 +331,7 @@ textbox_element *make_element(int type, size_info *pos, void* element_info, text
     } else {
         elem->neighbour = neighbours;
     }
+    elem->attributes = attributes;
     return elem;
 }
 void free_element(textbox_element *elem) {
@@ -346,6 +354,7 @@ void free_element(textbox_element *elem) {
     free(elem);
 }
 void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
+    wattron(win, element->attributes);
     if (element->visible == false) return;
     switch(element->type) {
         case TEXT_ID:
@@ -361,6 +370,7 @@ void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
             draw_write_elem(win, element, is_selected);
             break;
     }
+    wattroff(win, element->attributes);
 }
 
 // returns 0 on success,
@@ -393,6 +403,34 @@ int change_elem_visibility(menu_manager *menu_manager_, int elem_id, bool visibl
     textbox *tbox = menu_manager_->stack[menu_manager_->top];
     if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
     tbox->elements[elem_id]->visible = visible;
+    return 0;
+}
+
+// returns 0 on success,
+// -1 if element out of range
+int add_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes) {
+    textbox *tbox = menu_manager_->stack[menu_manager_->top];
+    if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
+    tbox->elements[elem_id]->attributes |= attributes; // turn selected attributes on
+    return 0;
+}
+
+// returns 0 on success,
+// -1 if element out of range
+int remove_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes) {
+    textbox *tbox = menu_manager_->stack[menu_manager_->top];
+    if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
+    tbox->elements[elem_id]->attributes |= attributes; // turn selected attributes on
+    tbox->elements[elem_id]->attributes ^= attributes; // xor turns them off
+    return 0;
+}
+
+// returns 0 on success,
+// -1 if element out of range
+int set_elem_attributes(menu_manager *menu_manager_, int elem_id, attr_t attributes) {
+    textbox *tbox = menu_manager_->stack[menu_manager_->top];
+    if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
+    tbox->elements[elem_id]->attributes = attributes;
     return 0;
 }
 
