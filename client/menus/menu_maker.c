@@ -385,7 +385,7 @@ void update_lobby_menu(menu_manager *manager) {
 void update_save_button_visibility(menu_manager *manager) {
     if (manager->stack[manager->top]->id != SETTINGS_MENU_ID) return;
     int len = 0;
-    char* new_nick = fetch_text_from_element(manager, 1000, &len);
+    char* new_nick = fetch_text_from_element(manager, WRITE_ID_NICKNAME, &len);
     bool changed = false;
     if (new_nick && len > 0) {
         if (strncmp(last_saved_nick, new_nick, NICKNAME_MAX_LEN) != 0) {
@@ -396,10 +396,9 @@ void update_save_button_visibility(menu_manager *manager) {
     if (new_nick) free(new_nick);
 }
 
-// Helper to save nickname if changed and update last_saved_nick
 void save_nickname_if_changed(menu_manager *manager, bool update_button) {
     int len = 0;
-    char* new_nick = fetch_text_from_element(manager, 1000, &len);
+    char* new_nick = fetch_text_from_element(manager, WRITE_ID_NICKNAME, &len);
     if (new_nick && len > 0) {
         if (strncmp(last_saved_nick, new_nick, NICKNAME_MAX_LEN) != 0) {
             set_nickname(new_nick);

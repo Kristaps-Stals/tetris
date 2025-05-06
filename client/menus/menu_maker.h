@@ -29,7 +29,8 @@ enum {
 
 enum {
     WRITE_ID_JOIN_IP = 0,
-    WRITE_ID_JOIN_PORT = 1
+    WRITE_ID_JOIN_PORT = 1,
+    WRITE_ID_NICKNAME = 2
 };
 
 enum {
