@@ -40,8 +40,9 @@ void sync_lobby(server_manager *s_manager) {
     free(msg_sync);
 }
 
+// sus
 void disconnect_player(int client_fd, const char* reason, server_manager *s_manager) {
-    printf("disconnecting client_fd = %d\n", client_fd);
+    printf("[message_handler] disconnecting client_fd = %d\n", client_fd);
     uint16_t payload_len = strlen(reason) + 1; // include '\0'
 
     // send disconnect
@@ -110,7 +111,7 @@ void message_handler_handle_hello(int client_fd, server_manager *s_manager) {
     // }
     // fflush(stdout);
 
-    printf("Added player: player_id=%d, name=%s\n", player_id, hello.player_name);
+    printf("[message_handler] Added player: player_id=%d, name=%s\n", player_id, hello.player_name);
     sync_lobby(s_manager);
 }
 
@@ -129,39 +130,33 @@ void skip_msg(uint16_t length, int client_fd) {
 void handle_msg_leave(uint16_t length, int client_fd, server_manager *s_manager) {
     skip_msg(length, client_fd);
     client_manager_remove(client_fd, s_manager);
+    sync_lobby(s_manager);
 }
 
-void handle_msg_set_ready(uint16_t length, int client_fd, uint8_t src, server_manager *s_manager) {
-    if (length != 3) {
-        skip_msg(length, client_fd);
-        return;
+void handle_msg_toggle_ready(uint16_t length, int client_fd, server_manager *s_manager) {
+    skip_msg(length, client_fd);
+    int8_t player_id = get_player_id_from_fd(client_fd);
+    if (player_id == -1) return;
+
+    bool changed = false;
+    if (s_manager->player_1 == player_id) {
+        s_manager->player_1_ready = !s_manager->player_1_ready;
+        changed = true;
+        printf("[message_handler] player_1_ready %d->%d\n", !s_manager->player_1_ready, s_manager->player_1_ready);
+    }
+    if (s_manager->player_2 == player_id) {
+        s_manager->player_2_ready = !s_manager->player_2_ready;
+        changed = true;
+        printf("[message_handler] player_2_ready %d->%d\n", !s_manager->player_2_ready, s_manager->player_2_ready);
     }
 
-    uint8_t flag;
-    if (read(client_fd, &flag, 1) != 1) {
-        client_manager_remove(client_fd, s_manager);
-        return;
-    }
-    // bool ready = (flag != 0);
-    // client_manager_set_ready(src, ready);
-
-    uint8_t ready_hdr[4] = {0, 3, MSG_SET_READY, src};
-    client_manager_broadcast(ready_hdr, 4, &flag, 1);
-
-    // if (client_manager_count_ready() == 2) {
-    //     uint8_t stat_hdr[4]    = {0, 3, MSG_SET_STATUS, PLAYER_ID_BROADCAST};
-    //     uint8_t stat_payload[1] = {1};
-    //     client_manager_broadcast(stat_hdr, 4, stat_payload, 1);
-    // }
+    if (changed) sync_lobby(s_manager);
 }
 
-void handle_msg_toggle_player(uint16_t length, int client_fd, uint8_t src, server_manager *s_manager) {
-    (void)src;
-    (void)length;
-    // skip_msg(length, client_fd);
+void handle_msg_toggle_player(uint16_t length, int client_fd, server_manager *s_manager) {
+    skip_msg(length, client_fd);
     int client_id = get_player_id_from_fd(client_fd);
     if (client_id == -1) return;
-    // printf("%d!\n", client_id);
     if (s_manager->player_1 == client_id) {
         printf("[message_handler] set player_1 to -1\n");
         s_manager->player_1 = -1;
@@ -216,22 +211,22 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     uint16_t length = (hdr[0] << 8) | hdr[1];
     uint8_t  type   = hdr[2];
     uint8_t  src    = get_player_id_from_fd(client_fd);
-    
-    (void)s_manager;
+
+    (void)src;
 
     switch(type) {
         case MSG_LEAVE:
             handle_msg_leave(length, client_fd, s_manager);
             break;
-        case MSG_SET_READY:
-            handle_msg_set_ready(length, client_fd, src, s_manager);
+        case MSG_TOGGLE_READY:
+            handle_msg_toggle_ready(length, client_fd, s_manager);
             break;
         case MSG_TOGGLE_PLAYER:
-            handle_msg_toggle_player(length, client_fd, src, s_manager);
+            handle_msg_toggle_player(length, client_fd, s_manager);
+            sync_lobby(s_manager);
             break;
         default:
             skip_msg(length, client_fd);
             break;
     }
-    sync_lobby(s_manager);
 }

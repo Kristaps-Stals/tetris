@@ -165,14 +165,6 @@ void handle_msg_disconnect(menu_manager *mgr, uint8_t src) {
     if (mgr->stack[mgr->top]->id == LOBBY_MENU_ID) pop_menu_stack(mgr);
 }
 
-void handle_msg_set_ready(menu_manager *mgr, uint8_t *buf, uint8_t src) {
-    // bool ready = buf[0];
-    // mgr->slot_ready[src - 1] = ready;
-    (void)mgr;
-    (void)buf;
-    (void)src;
-}
-
 void handle_msg_lobby_sync(menu_manager *mgr, uint8_t *buf, uint8_t src) {
     (void)src;
     msg_sync_lobby_t *msg = (msg_sync_lobby_t*)buf;
@@ -210,10 +202,6 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
             break;
         case MSG_DISCONNECT:
             handle_msg_disconnect(mgr, src);
-            lobby_updated = true;
-            break;
-        case MSG_SET_READY:
-            handle_msg_set_ready(mgr, buf, src);
             lobby_updated = true;
             break;
         case MSG_SYNC_LOBBY:

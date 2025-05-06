@@ -56,6 +56,8 @@ textbox *make_endscreen(tetris_board *board);
 textbox *make_lobby_menu();
 void pop_menu_stack(menu_manager *manager);
 void update_lobby_menu(menu_manager *manager);
-int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
 int update_menus(menu_manager *manager, int user_input);
 int manage_menus(menu_manager *manager, int user_input);
+
+int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text);
+int change_elem_visibility(menu_manager *menu_manager_, int elem_id, bool visible);

@@ -12,7 +12,7 @@ typedef enum {
     MSG_LEAVE         = 0x05,
     MSG_ERROR         = 0x06,
 
-    MSG_SET_READY     = 0x10,
+    MSG_TOGGLE_READY  = 0x10,
     MSG_TOGGLE_PLAYER = 0x11, // request to become a player or unbecome a player
     MSG_SYNC_LOBBY    = 0x12, // sync lobby information
 

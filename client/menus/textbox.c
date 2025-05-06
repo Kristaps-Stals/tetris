@@ -30,32 +30,38 @@ textbox_neighbours *make_neighbours(int up, int right, int down, int left) {
 // default free
 
 // returns 1 if selected is updated
-int update_selected(textbox *tbox, textbox_neighbours *next, int user_input) {
+int update_selected(textbox *tbox, int user_input) {
+    int at = tbox->element_selected;
+    int cnt = 0;
+    while (1) {
+        textbox_neighbours *next = tbox->elements[at]->neighbour;
+        if (next == NULL) break;
+        if (user_input == get_keyboard_button(MENU_UP)) {
+            if (next->up >= 0) at = next->up;
+        }
+        if (user_input == get_keyboard_button(MENU_RIGHT)) {
+            if (next->right >= 0) at = next->right;
+        }
+        if (user_input == get_keyboard_button(MENU_DOWN)) {
+            if (next->down >= 0) at = next->down;
+        }
+        if (user_input == get_keyboard_button(MENU_LEFT)) {
+            if (next->left >= 0) at = next->left;
+        }
+        if (tbox->elements[at]->visible) break; // if element is visible stop
+        // keep going until at a visible element
+        cnt++;
+        if (cnt > 1000) {
+            // mvprintw(0, 0, "INFINITE LOOP IN TEXTBOX ELEMENTS (INVISIBILITY SKIPS ELEMENTS)");
+            // refresh();
+            at = tbox->element_selected;
+            break;
+        }
+    }
+
     int ret = 0;
-    if (user_input == get_keyboard_button(MENU_UP)) {
-        if (next->up >= 0) {
-            tbox->element_selected = next->up;
-            ret = 1;
-        }
-    }
-    if (user_input == get_keyboard_button(MENU_RIGHT)) {
-        if (next->right >= 0) {
-            tbox->element_selected = next->right;
-            ret = 1;
-        }
-    }
-    if (user_input == get_keyboard_button(MENU_DOWN)) {
-        if (next->down >= 0) {
-            tbox->element_selected = next->down;
-            ret = 1;
-        }
-    }
-    if (user_input == get_keyboard_button(MENU_LEFT)) {
-        if (next->left >= 0) {
-            tbox->element_selected = next->left;
-            ret = 1;
-        }
-    }
+    if (at != tbox->element_selected) ret = 1;
+    tbox->element_selected = at;
     return ret;
 }
 
@@ -97,17 +103,15 @@ void draw_text(WINDOW *win, textbox_element *element) {
 }
 
 // BUTTON
-textbox_button *make_button(char *text, int trigger_val, textbox_neighbours *neighbours) {
+textbox_button *make_button(char *text, int trigger_val) {
     textbox_button *button = malloc(sizeof(textbox_button));
     button->text = copy_text(text);
     button->text_len = char_len(text);
-    button->neighbour = neighbours;
     button->trigger_val = trigger_val;
     return button;
 }
 void free_button(textbox_button *button) {
     free(button->text);
-    free(button->neighbour);
     free(button);
 }
 void draw_button(WINDOW *win, textbox_element *element, int is_selected) {
@@ -130,9 +134,8 @@ void draw_button(WINDOW *win, textbox_element *element, int is_selected) {
 int update_handle_button(textbox *tbox, int user_input) {
     textbox_element *selected_elem = tbox->elements[tbox->element_selected];
     textbox_button *info = selected_elem->info;
-    textbox_neighbours *next = info->neighbour;
 
-    update_selected(tbox, next, user_input);
+    update_selected(tbox, user_input);
 
     if (is_menu_select_pressed(user_input)) {
         return info->trigger_val;
@@ -153,17 +156,12 @@ void update_keybind_text(textbox_keybind_select *keybind_select) {
     keybind_select->text_normal = copy_text(buf);
     keybind_select->text_normal_len = char_len(buf);
 }
-textbox_keybind_select *make_keybind_select(
-    char *text_editing,
-    int keybind_id,
-    textbox_neighbours* neighbours
-) {
+textbox_keybind_select *make_keybind_select(char *text_editing, int keybind_id) {
     textbox_keybind_select *keybind_select = malloc(sizeof(textbox_keybind_select));
     keybind_select->text_editing = copy_text(text_editing);
     keybind_select->text_editing_len = char_len(text_editing);
     keybind_select->is_editing = false;
     keybind_select->keybind_id = keybind_id;
-    keybind_select->neighbour = neighbours;
 
     keybind_select->text_normal = NULL;
     update_keybind_text(keybind_select);
@@ -173,7 +171,6 @@ textbox_keybind_select *make_keybind_select(
 void free_keybind_select(textbox_keybind_select *keybind_select) {
     free(keybind_select->text_normal);
     free(keybind_select->text_editing);
-    free(keybind_select->neighbour);
     free(keybind_select);
 }
 void draw_keybind_select(WINDOW *win, textbox_element *element, int is_selected) {
@@ -199,7 +196,6 @@ void draw_keybind_select(WINDOW *win, textbox_element *element, int is_selected)
 int update_handle_keybind_select(textbox *tbox, int user_input) {
     textbox_element *selected_elem = tbox->elements[tbox->element_selected];
     textbox_keybind_select *info = selected_elem->info;
-    textbox_neighbours *next = info->neighbour;
 
     if (info->is_editing) {
         if (user_input == -1) return 0;
@@ -208,7 +204,7 @@ int update_handle_keybind_select(textbox *tbox, int user_input) {
         return 0;
     }
 
-    update_selected(tbox, next, user_input);
+    update_selected(tbox, user_input);
 
     if (is_menu_select_pressed(user_input)) {
         info->is_editing = true;
@@ -218,12 +214,7 @@ int update_handle_keybind_select(textbox *tbox, int user_input) {
 }
 
 // WRITING ELEMENT
-textbox_write *make_write_elem(
-    char* default_text,
-    int max_len,
-    int write_id,
-    textbox_neighbours *neighbours
-) {
+textbox_write *make_write_elem(char* default_text, int max_len, int write_id) {
     textbox_write *write_elem = malloc(sizeof(textbox_write));
 
     write_elem->text = calloc(max_len+1, sizeof(char));
@@ -234,12 +225,10 @@ textbox_write *make_write_elem(
     write_elem->max_len = max_len;
     write_elem->write_id = write_id;
     write_elem->is_editing = false;
-    write_elem->neighbour = neighbours;
     return write_elem;
 }
 void free_write_elem(textbox_write *write_elem) {
     free(write_elem->text);
-    free(write_elem->neighbour);
     free(write_elem);
 }
 void draw_write_elem(WINDOW *win, textbox_element *element, int is_selected) {
@@ -289,7 +278,6 @@ void draw_write_elem(WINDOW *win, textbox_element *element, int is_selected) {
 int update_write_elem(textbox *tbox, int user_input) {
     textbox_element *selected_elem = tbox->elements[tbox->element_selected];
     textbox_write *info = selected_elem->info;
-    textbox_neighbours *next = info->neighbour;
 
     if (info->is_editing) {
         if (user_input == 10 || user_input == 27) { // enter or escape
@@ -311,7 +299,7 @@ int update_write_elem(textbox *tbox, int user_input) {
         return 0;
     }
 
-    if (update_selected(tbox, next, user_input)) {
+    if (update_selected(tbox, user_input)) {
         return 0;
     }
 
@@ -324,11 +312,18 @@ int update_write_elem(textbox *tbox, int user_input) {
 }
 
 // ELEMENT
-textbox_element *make_element(int type, size_info *pos, void* element_info) {
+// pass NULL to neighbours if dont want any
+textbox_element *make_element(int type, size_info *pos, void* element_info, textbox_neighbours *neighbours) {
     textbox_element *elem = malloc(sizeof(textbox_element));
     elem->type = type;
     elem->pos = pos;
     elem->info = element_info;
+    elem->visible = true;
+    if (neighbours == NULL) {
+        elem->neighbour = make_neighbours(-1, -1, -1, -1);
+    } else {
+        elem->neighbour = neighbours;
+    }
     return elem;
 }
 void free_element(textbox_element *elem) {
@@ -347,9 +342,11 @@ void free_element(textbox_element *elem) {
             break;
     }
     free(elem->pos);
+    free(elem->neighbour);
     free(elem);
 }
 void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
+    if (element->visible == false) return;
     switch(element->type) {
         case TEXT_ID:
             draw_text(win, element);
@@ -370,7 +367,7 @@ void draw_element(WINDOW *win, textbox_element *element, int is_selected) {
 // -1 if element out of range,
 // -2 if element does not have text field (or is not supported),
 // deep copies text, does not delete it
-// currently only supports TEXT and BUTTOn
+// currently only supports TEXT and BUTTON
 int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text) {
     textbox *tbox = menu_manager_->stack[menu_manager_->top];
     if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
@@ -387,6 +384,15 @@ int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text) {
             info_but->text = copy_text(new_text);
             break;
     }
+    return 0;
+}
+
+// returns 0 on success,
+// -1 if element out of range
+int change_elem_visibility(menu_manager *menu_manager_, int elem_id, bool visible) {
+    textbox *tbox = menu_manager_->stack[menu_manager_->top];
+    if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
+    tbox->elements[elem_id]->visible = visible;
     return 0;
 }
 
