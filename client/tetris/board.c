@@ -406,7 +406,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     update_tetris_difficulty(board);
     
     // tetrominos
-    board->bag_manager = construct_bag_manager(board, time(NULL));
+    board->bag_manager = construct_bag_manager(board, settings->bag_seed);
     board->active_tetromino = take_from_bag(board, board->bag_manager, false);
 
     // garbage

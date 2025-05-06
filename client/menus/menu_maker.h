@@ -39,6 +39,7 @@ enum {
 };
 
 typedef struct menu_manager {
+    void* parent;
     textbox **stack;
     int top, max_stack;
     bool is_editing;
@@ -47,10 +48,12 @@ typedef struct menu_manager {
     char slot_names[8][32];
     int player_1, player_2;
     int player_1_ready, player_2_ready;
+    char start_counter;
+    int bag_seed;
 } menu_manager;
 
 bool open_menu(menu_manager *manager, textbox *new_menu);
-menu_manager *make_menu_manager();
+menu_manager *make_menu_manager(void* parent);
 void free_menu_manager(menu_manager *manager);
 textbox *make_main_menu();
 textbox *make_settings_menu();

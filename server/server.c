@@ -1,4 +1,5 @@
 // server/server.c
+#define _XOPEN_SOURCE 700 // dont know what it does, but without it sigaction highlighting doesnt work
 #include "server.h"
 #include "connection.h"
 #include "client_manager.h"
@@ -6,6 +7,17 @@
 #include <signal.h>
 #include <unistd.h>
 #include "server_manager.h"
+#include <time.h>
+
+// converts timespec struct into a long long
+int64_t time_ll(struct timespec *x) {
+    return (int64_t)1e9*x->tv_sec+x->tv_nsec;
+}
+
+// returns delta time in microseconds
+int64_t get_delta_micro_s(struct timespec *now, struct timespec *bef) {
+    return (int64_t)(time_ll(now)-time_ll(bef))/1e3;
+}
 
 static int listen_fd;
 
@@ -22,8 +34,17 @@ int server_init(int port) {
 
 void server_run(void) {
     server_manager *s_manager = make_server_manager();
+
+    struct timespec now, last_time;
+    clock_gettime(CLOCK_MONOTONIC, &last_time);
+
     while (1) {
-        handle_server(s_manager);
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        int64_t delta_time = get_delta_micro_s(&now, &last_time);
+        last_time = now;
+        if (delta_time == 0) delta_time = 1;
+
+        handle_server(s_manager, delta_time);
         connection_loop(
             listen_fd,
             message_handler_handle_hello,

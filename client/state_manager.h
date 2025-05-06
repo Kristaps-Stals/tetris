@@ -20,3 +20,5 @@ state_manager* make_state_manager();
 void free_state_manager(state_manager* s_manager);
 
 void handle_state(state_manager *s_manager);
+
+void start_game_versus(state_manager *s_manager);

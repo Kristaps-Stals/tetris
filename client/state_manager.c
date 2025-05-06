@@ -16,7 +16,7 @@
 
 state_manager* make_state_manager() {
     state_manager *s_manager = malloc(sizeof(state_manager));
-    s_manager->menu_manager = make_menu_manager();
+    s_manager->menu_manager = make_menu_manager(s_manager);
     s_manager->board_1 = NULL;
     s_manager->board_2 = NULL;
     s_manager->state = STATE_MENU;
@@ -90,6 +90,7 @@ void start_game_solo(state_manager *s_manager) {
 }
 
 void start_game_versus(state_manager *s_manager) {
+    menu_manager *m_manager = s_manager->menu_manager;
     s_manager->state = STATE_GAME_VERSUS;
 
     const int space_between_boards = 50;
@@ -98,21 +99,24 @@ void start_game_versus(state_manager *s_manager) {
 
     // board 1 (left)
     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
-    board_settings->bag_seed = 0;
+    board_settings->bag_seed = m_manager->bag_seed;
     board_settings->play_height = 40;
     board_settings->play_width = 10;
     board_settings->window_height = 22;
     board_settings->window_width = 10;
     board_settings->win_x = (center_x_board_1-11);
     board_settings->win_y = (LINES-(22+2))/2;
-    board_settings->controlled = true;
-    board_settings->player_id = 0;
+    board_settings->controlled = false;
+    if (m_manager->player_id == m_manager->player_1) {
+        board_settings->controlled = true;
+    }
+    board_settings->player_id = m_manager->player_1;
     s_manager->board_1 = construct_tetris_board(board_settings);
     free(board_settings);
 
     // board 2 (right)
     board_settings = malloc(sizeof(tetris_board_settings));
-    board_settings->bag_seed = 0;
+    board_settings->bag_seed = m_manager->bag_seed;
     board_settings->play_height = 40;
     board_settings->play_width = 10;
     board_settings->window_height = 22;
@@ -120,7 +124,10 @@ void start_game_versus(state_manager *s_manager) {
     board_settings->win_x = (center_x_board_2-11);
     board_settings->win_y = (LINES-(22+2))/2;
     board_settings->controlled = false;
-    board_settings->player_id = 1;
+    if (m_manager->player_id == m_manager->player_2) {
+        board_settings->controlled = true;
+    }
+    board_settings->player_id = m_manager->player_2;
     s_manager->board_2 = construct_tetris_board(board_settings);
     free(board_settings);
 
@@ -133,12 +140,11 @@ void handle_state_menu(state_manager *s_manager) {
 
     switch(ret) {
         case UPDSTATE_SOLO:
-            start_game_versus(s_manager); // temp
-            // start_game_solo(s_manager);
+            start_game_solo(s_manager);
             break;
-        case UPDSTATE_VERSUS:
-            start_game_versus(s_manager);
-            break;
+        // case UPDSTATE_VERSUS: // unused
+        //     start_game_versus(s_manager);
+        //     break;
     }
 }
 
@@ -158,23 +164,41 @@ void handle_state_game_solo(state_manager *s_manager) {
 }
 
 void handle_state_game_versus(state_manager *s_manager) {
-    tetris_board_update *upd = malloc(sizeof(tetris_board_update));
-    upd->board = s_manager->board_1;
-    upd->delta_time = s_manager->delta_time;
-    upd->user_input = s_manager->user_input;
-    int ret = update_board(upd);
-    free(upd);
-    if (ret == 1) {
-        s_manager->state = STATE_MENU;
-        open_menu(s_manager->menu_manager, make_endscreen(s_manager->board_1));
-        if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
-        s_manager->board_1 = NULL;
-        return;
+    if (s_manager->board_1->is_controlled) {
+        tetris_board_update *upd = malloc(sizeof(tetris_board_update));
+        upd->board = s_manager->board_1;
+        upd->delta_time = s_manager->delta_time;
+        upd->user_input = s_manager->user_input;
+        int ret = update_board(upd);
+        free(upd);
+        if (ret == 1) {
+            s_manager->state = STATE_MENU;
+            open_menu(s_manager->menu_manager, make_endscreen(s_manager->board_1));
+            if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
+            s_manager->board_1 = NULL;
+            return;
+        }
     }
     
-    msg_sync_board_t *msg = make_sync_board_msg(s_manager->board_1);
-    apply_sync_board_msg(s_manager->board_2, msg);
-    free(msg);
+    if (s_manager->board_2->is_controlled) {
+        tetris_board_update *upd = malloc(sizeof(tetris_board_update));
+        upd->board = s_manager->board_2;
+        upd->delta_time = s_manager->delta_time;
+        upd->user_input = s_manager->user_input;
+        int ret = update_board(upd);
+        free(upd);
+        if (ret == 1) {
+            s_manager->state = STATE_MENU;
+            open_menu(s_manager->menu_manager, make_endscreen(s_manager->board_2));
+            if (s_manager->board_2) deconstruct_tetris_board(s_manager->board_2);
+            s_manager->board_2 = NULL;
+            return;
+        }
+    }
+
+    // msg_sync_board_t *msg = make_sync_board_msg(s_manager->board_1);
+    // apply_sync_board_msg(s_manager->board_2, msg);
+    // free(msg);
 }
 
 void handle_state(state_manager *s_manager) {

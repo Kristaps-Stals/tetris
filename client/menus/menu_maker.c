@@ -13,8 +13,9 @@
 // move last_saved_nick to file scope
 static char last_saved_nick[NICKNAME_MAX_LEN] = "";
 
-menu_manager *make_menu_manager() {
+menu_manager *make_menu_manager(void* parent) {
     menu_manager *manager = malloc(sizeof(menu_manager));
+    manager->parent = parent;
     manager->max_stack = 10;
     manager->stack = malloc((manager->max_stack+1)*sizeof(textbox*));
     manager->top = 0;
@@ -30,6 +31,7 @@ menu_manager *make_menu_manager() {
     manager->player_2_ready = 0;
     manager->player_id = -1;
     manager->stack[0] = make_main_menu();
+    manager->start_counter = ' ';
     return manager;
 }
 void free_menu_manager(menu_manager *manager) {
@@ -272,7 +274,7 @@ textbox *make_lobby_menu() {
     size_info *pos = make_size_info(h, w, y, x);
 
     int name_textbox_cnt = 10;
-    int ELEM_CNT = name_textbox_cnt+7;
+    int ELEM_CNT = name_textbox_cnt+8;
     textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
     int max_name_len = 30;
@@ -327,6 +329,10 @@ textbox *make_lobby_menu() {
     info_button = make_button("ready", TOGGLE_READY);
     elems[name_textbox_cnt+6] = make_element(BUTTON_ID, pos_elem, info_button, next_elem, A_NORMAL);
     
+    pos_elem = make_size_info(1, 9, h-2, 2);
+    info_text = make_text(" ");
+    elems[name_textbox_cnt+7] = make_element(TEXT_ID, pos_elem, info_text, NULL, A_NORMAL);
+
     return make_textbox(pos, elems, ELEM_CNT, name_textbox_cnt+0, LOBBY_MENU_ID);
 }
 void update_lobby_menu(menu_manager *manager) {
@@ -380,6 +386,10 @@ void update_lobby_menu(menu_manager *manager) {
     } else {
         change_elem_visibility(manager, 16, false);
     }
+
+    char txt[5];
+    sprintf(txt, "%c", manager->start_counter);
+    change_elem_text(manager, 17, txt);
 }
 
 void update_save_button_visibility(menu_manager *manager) {

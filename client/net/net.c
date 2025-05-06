@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include "../menus/menu_maker.h"
+#include "../state_manager.h"
 
 char *copy_text(const char *src);
 
@@ -176,8 +177,15 @@ void handle_msg_lobby_sync(menu_manager *mgr, uint8_t *buf, uint8_t src) {
     mgr->player_2 = msg->player_2;
     mgr->player_1_ready = msg->player_1_ready;
     mgr->player_2_ready = msg->player_2_ready;
-    mvprintw(0, 0, "%d\n", mgr->player_1);
-    refresh();
+    mgr->start_counter = msg->start_counter;
+}
+
+void handle_msg_start_game(menu_manager *mgr, uint8_t *buf) {
+    msg_start_game_t *msg = (msg_start_game_t*)buf;
+    mgr->player_1 = msg->player_1;
+    mgr->player_2 = msg->player_2;
+    mgr->bag_seed = msg->bag_seed;
+    start_game_versus(mgr->parent);
 }
 
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
@@ -208,6 +216,8 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
             handle_msg_lobby_sync(mgr, buf, src);
             lobby_updated = true;
             break;
+        case MSG_START_GAME:
+            handle_msg_start_game(mgr, buf);
         default:
             break;
     }

@@ -15,6 +15,7 @@ typedef enum {
     MSG_TOGGLE_READY  = 0x10,
     MSG_TOGGLE_PLAYER = 0x11, // request to become a player or unbecome a player
     MSG_SYNC_LOBBY    = 0x12, // sync lobby information
+    MSG_START_GAME    = 0x13,
 
     MSG_REQ_SYNC      = 0x18,
     MSG_MOVE          = 0x19,
@@ -52,7 +53,14 @@ typedef struct __attribute__((packed)) {
     char player_names[MAX_CLIENTS][MAX_NAME_LEN];
     int8_t player_1, player_2;
     uint8_t player_1_ready, player_2_ready;
+    uint8_t start_counter;
 } msg_sync_lobby_t;
+
+
+typedef struct __attribute__((packed)) {
+    int8_t player_1, player_2;
+    int32_t bag_seed;
+} msg_start_game_t;
 
 typedef struct __attribute__((packed)) {
     int player_id;

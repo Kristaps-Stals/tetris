@@ -18,6 +18,7 @@ msg_sync_lobby_t *make_sync_lobby_msg(server_manager *s_manager) {
     msg->player_2 = s_manager->player_2;
     msg->player_1_ready = s_manager->player_1_ready;
     msg->player_2_ready = s_manager->player_2_ready;
+    msg->start_counter = s_manager->last_time_char_sent;
     for (int i = 0; i < 8; i++) {
         const client_t *client = client_manager_get(i);
         memset(&msg->player_names[i], 0, 30);
