@@ -124,7 +124,7 @@ textbox *make_settings_menu() {
         BUTTON_ID,
         make_size_info(1, 4, h - 2, w - 1 - 4 - 6),
         make_button("save", SAVE_SETTINGS),
-        make_neighbours(2, 4, 2, -1),
+        make_neighbours(2, 4, 6, 4), // up→nick(2), right→back(4), down→edit(6), left→back(4)
         A_NORMAL
     );
     elems[3]->visible = false;
@@ -134,7 +134,7 @@ textbox *make_settings_menu() {
         BUTTON_ID,
         make_size_info(1, 4, h - 2, w - 1 - 4 - 1),
         make_button("back", CLOSE_MENU),
-        make_neighbours(6, -1, 2, 3), 
+        make_neighbours(6, 3, 6, 3), // up→edit(6), right→save(3), down→edit(6), left→save(3)
         A_NORMAL
     );
 
