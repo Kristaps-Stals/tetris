@@ -27,6 +27,9 @@ bool client_manager_add(int sockfd, const char *name);
 // remove a client (on disconnect or error)
 void client_manager_remove(int sockfd, server_manager *s_manager);
 
+// send a raw [hdr,len=hdr_len] + [payload,len=payload_len] to [player_id]
+void client_manager_send(const uint8_t *hdr, int hdr_len, const uint8_t *payload, int payload_len, int player_id);
+
 // send a raw [hdr,len=hdr_len] + [payload,len=payload_len] to all clients except [except_socketfd]
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len, const uint8_t *payload, int payload_len, int except_socketfd);
 

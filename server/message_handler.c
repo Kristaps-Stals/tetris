@@ -195,13 +195,38 @@ void handle_msg_toggle_player(uint16_t length, int client_fd, server_manager *s_
 
 void handle_msg_sync_board(uint16_t length, int client_fd) {
     msg_sync_board_t msg;
-    if (recv_payload(client_fd, length, &msg) != 0) {
-        return;
-    }
+    if (recv_payload(client_fd, length, &msg) != 0) return;
     printf("[message_handler] sending board sync, player_id=%d, score=%d\n", msg.player_id, msg.counters.score);
     uint8_t *hdr = make_hdr(sizeof(msg_sync_board_t), MSG_SYNC_BOARD, PLAYER_ID_BROADCAST);
     client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_sync_board_t), client_fd);
     free_hdr(hdr);
+}
+
+void handle_msg_send_garbage(uint16_t length, int client_fd, server_manager *s_manager) {
+    msg_send_garbage_t msg;
+    if (recv_payload(client_fd, length, &msg) != 0) return;
+
+    int8_t player_id = get_player_id_from_fd(client_fd);
+    printf("[message_handler] garbage from player_id=%d, garbage=%d", player_id, msg.garbage_amount);
+    if (player_id == s_manager->player_1) {
+        // from player 1 to player 2
+        uint8_t *hdr = make_hdr(sizeof(msg_send_garbage_t), MSG_SEND_GARBAGE, PLAYER_ID_BROADCAST);
+        client_manager_send(hdr, 4, (void*)&msg, sizeof(msg_send_garbage_t), s_manager->player_2);
+        free_hdr(hdr);
+    }
+
+    if (player_id == s_manager->player_2) {
+        // from player 2 to player 1
+        uint8_t *hdr = make_hdr(sizeof(msg_send_garbage_t), MSG_SEND_GARBAGE, PLAYER_ID_BROADCAST);
+        client_manager_send(hdr, 4, (void*)&msg, sizeof(msg_send_garbage_t), s_manager->player_1);
+        free_hdr(hdr);
+    }
+}
+
+void handle_msg_req_board(int client_fd, server_manager *s_manager) {
+    (void)s_manager;
+    int8_t player_id = get_player_id_from_fd(client_fd);
+    printf("[message_handler] req_board player_id=%d\n", player_id);
 }
 
 void message_handler_dispatch(int client_fd, server_manager *s_manager) {
@@ -249,6 +274,12 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             break;
         case MSG_SYNC_BOARD:
             handle_msg_sync_board(length, client_fd);
+            break;
+        case MSG_SEND_GARBAGE:
+            handle_msg_send_garbage(length, client_fd, s_manager);
+            break;
+        case MSG_REQ_BOARD:
+            handle_msg_req_board(client_fd, s_manager);
             break;
         default:
             skip_msg(length, client_fd);

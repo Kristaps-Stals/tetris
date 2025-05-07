@@ -7,6 +7,7 @@
 #include <string.h>
 #include "score.h"
 #include "../menus/keyboard_manager.h"
+#include "../net/net.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -287,6 +288,7 @@ void update_garbage(tetris_garbage_manager *manager, int delta_time) {
         }
     }
 }
+
 // called when need to add new garbage
 void add_garbage(tetris_board *board, int amount) {
     tetris_garbage_manager *manager = board->garbage_manager;
@@ -339,9 +341,11 @@ void send_garbage(tetris_board *board, int garbage_amount) {
     if (garbage_amount == 0) return;
 
     // 3. send remainng to opponent
-    mvprintw(0, 0, "sent %d lines", garbage_amount);
+    msg_send_garbage_t msg;
+    msg.garbage_amount = garbage_amount;
+    send_message(board->sockfd, MSG_SEND_GARBAGE, board->player_id, &msg, sizeof(msg_send_garbage_t));
+
     refresh();
-    
 }
 void draw_garbage(tetris_garbage_manager *manager) {
     
@@ -417,6 +421,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->info_manager = make_default_info_manager(board);
     board->is_controlled = settings->controlled;
     board->player_id = settings->player_id;
+    board->sockfd = settings->sockfd;
 
     return board;
 }
@@ -483,7 +488,6 @@ int handle_score_report(tetris_board *board, score_report *score_rep) {
     // add score
     board->counters->score += score_rep->score;
 
-    // TODO: send garbage
     send_garbage(board, score_rep->garbage);
 
     // trigger own garbage if no lines cleared

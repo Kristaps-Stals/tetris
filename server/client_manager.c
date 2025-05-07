@@ -87,23 +87,31 @@ void client_manager_remove(int sockfd, server_manager *s_manager) {
     count--;
 }
 
+void client_manager_send(const uint8_t *hdr, int hdr_len,
+                         const uint8_t *payload, int payload_len,
+                         int player_id) {
+    const client_t *client = client_manager_get(player_id);
+    if (client == NULL || client->exists == false) return;
+
+    fd_set wfds;
+    FD_ZERO(&wfds);
+    FD_SET(client->sockfd, &wfds);
+    struct timeval timeout = {0, 0};
+    select(client->sockfd+1, NULL, &wfds, NULL, &timeout);
+    if (!FD_ISSET(client->sockfd, &wfds)) return;
+
+    write(client->sockfd, hdr, hdr_len);
+    if (payload_len > 0){
+        write(client->sockfd, payload, payload_len);
+    }
+}
+
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
                               const uint8_t *payload, int payload_len,
                               int except_socketfd) {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         const client_t *client = client_manager_get(i);
-        if (client->sockfd == except_socketfd || client == NULL || client->exists == false) continue;
-
-        fd_set wfds;
-        FD_ZERO(&wfds);
-        FD_SET(client->sockfd, &wfds);
-        struct timeval timeout = {0, 0};
-        select(client->sockfd+1, NULL, &wfds, NULL, &timeout);
-        if (!FD_ISSET(client->sockfd, &wfds)) continue;
-
-        write(clients[i].sockfd, hdr, hdr_len);
-        if (payload_len > 0){
-            write(clients[i].sockfd, payload, payload_len);
-        }
+        if (client->sockfd == except_socketfd) continue;
+        client_manager_send(hdr, hdr_len, payload, payload_len, i);
     }
 }

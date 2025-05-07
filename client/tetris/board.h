@@ -68,6 +68,7 @@ typedef struct tetris_board {
     int highest_tetromino; // highest placed tetromino
     bool is_controlled; // is this board being controlled by this client?
     int player_id; // player id used for multiplayer
+    int sockfd; // for sending messages if needed, -1 if doesnt exist
     
     tetromino *active_tetromino; // actively falling tetromino
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits
@@ -75,6 +76,7 @@ typedef struct tetris_board {
     tetris_difficulty_manager *difficulty_manager;
     tetris_info_manager *info_manager;
     tetris_garbage_manager *garbage_manager;
+    score_report *latest_score_report;
 } tetris_board;
 
 // settings, which are used to construct a tetris board
@@ -87,6 +89,7 @@ typedef struct tetris_board_settings {
     int win_x, win_y;
     bool controlled;
     int player_id;
+    int sockfd;
 } tetris_board_settings;
 
 // information used when updating tetris board
@@ -109,3 +112,5 @@ void draw_tetris_board(tetris_board *board);
 bool valid_pos(tetromino *test, tetris_board *board);
 tetromino *deepcpy_tetromino(tetromino *a);
 void draw_score_messages(tetris_board *board, score_report *score_rep);
+
+void add_garbage(tetris_board *board, int amount);

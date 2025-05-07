@@ -17,17 +17,19 @@ typedef enum {
     MSG_SYNC_LOBBY    = 0x12, // sync lobby information
     MSG_START_GAME    = 0x13,
 
-    MSG_REQ_SYNC      = 0x18,
-    MSG_MOVE          = 0x19,
-    MSG_ROTATE        = 0x1A,
-    MSG_DROP          = 0x1B,
+    // MSG_REQ_SYNC      = 0x18,
+    // MSG_MOVE          = 0x19,
+    // MSG_ROTATE        = 0x1A,
+    // MSG_DROP          = 0x1B,
 
     MSG_SET_STATUS    = 0x20,
     MSG_SYNC_USERS    = 0x21,
     MSG_SYNC_BOARD    = 0x22,
-    MSG_WINNER        = 0x23,
+    MSG_SEND_GARBAGE  = 0x23,
+    MSG_REQ_BOARD     = 0x24,
+    // MSG_WINNER        = 0x25,
 
-    MSG_UPDATE_BOARD  = 0x28
+    // MSG_UPDATE_BOARD  = 0x28
 
 } MessageType;
 
@@ -76,6 +78,10 @@ typedef struct __attribute__((packed)) {
     int8_t player_1, player_2;
     int32_t start_bag_seed;
 } msg_sync_board_t;
+
+typedef struct __attribute__((packed)) {
+    int8_t garbage_amount;
+} msg_send_garbage_t;
 
 uint8_t *make_hdr(uint16_t payload_length, uint8_t type, uint8_t src);
 void free_hdr(uint8_t *hdr);

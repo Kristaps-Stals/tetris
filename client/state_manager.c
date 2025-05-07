@@ -85,6 +85,7 @@ void start_game_solo(state_manager *s_manager) {
     board_settings->win_y = (LINES-(22+2))/2;
     board_settings->win_x = (COLS-(10*2+2))/2;
     board_settings->controlled = true;
+    board_settings->sockfd = -1;
     board_settings->player_id = 0;
     s_manager->board_1 = construct_tetris_board(board_settings);
     free(board_settings);
@@ -111,8 +112,10 @@ void start_game_versus(state_manager *s_manager) {
     board_settings->win_x = (center_x_board_1-11);
     board_settings->win_y = (LINES-(22+2))/2;
     board_settings->controlled = false;
+    board_settings->sockfd = -1;
     if (m_manager->player_id == m_manager->player_1) {
         board_settings->controlled = true;
+        board_settings->sockfd = m_manager->server_socket;
     }
     board_settings->player_id = m_manager->player_1;
     s_manager->board_1 = construct_tetris_board(board_settings);
@@ -128,8 +131,10 @@ void start_game_versus(state_manager *s_manager) {
     board_settings->win_x = (center_x_board_2-11);
     board_settings->win_y = (LINES-(22+2))/2;
     board_settings->controlled = false;
+    board_settings->sockfd = -1;
     if (m_manager->player_id == m_manager->player_2) {
         board_settings->controlled = true;
+        board_settings->sockfd = m_manager->server_socket;
     }
     board_settings->player_id = m_manager->player_2;
     s_manager->board_2 = construct_tetris_board(board_settings);
@@ -176,17 +181,21 @@ int control_board_versus(tetris_board *board, state_manager *s_manager) {
     bool is_changed = false;
     int ret = update_board(upd, &is_changed);
     free(upd);
+    
+    static int64_t cooldown = 0;
+    cooldown -= s_manager->delta_time;
 
-    if (is_changed) {
+    if (is_changed && cooldown <= 0) {    
         msg_sync_board_t *msg = make_sync_board_msg(board, s_manager);
         send_message(
             s_manager->menu_manager->server_socket,
             MSG_SYNC_BOARD,
             s_manager->menu_manager->player_id,
             (void*)msg,
-            sizeof(msg_sync_board_t)    
+            sizeof(msg_sync_board_t)
         );
         free(msg);
+        cooldown = 200*1e3; // 150 ms
     }
 
     return ret;

@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include "../menus/menu_maker.h"
 #include "../state_manager.h"
+#include "../tetris/board.h"
 
 char *copy_text(const char *src);
 
@@ -34,6 +35,7 @@ int connect_to_server(const char *ip, int port) {
 }
 
 int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payload, uint16_t payload_size) {
+    if (sockfd < 0) return -1;
 
     fd_set wfds;
     FD_ZERO(&wfds);
@@ -56,10 +58,10 @@ int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payloa
         memcpy(buffer + 4, payload, payload_size);
     }
 
-    // int sent = send(sockfd, buffer, length, MSG_NOSIGNAL);
-    write(sockfd, buffer, length);
+    int sent = send(sockfd, buffer, length, MSG_NOSIGNAL);
+    // write(sockfd, buffer, length);
     free(buffer);
-    return 0;
+    return sent;
 }
 
 int send_hello(int sockfd, const char *client_id, const char *player_name) {
@@ -216,6 +218,18 @@ void handle_msg_sync_board(menu_manager *mgr, uint8_t *buf) {
     }
 }
 
+void handle_msg_send_garbage(menu_manager *mgr, uint8_t *buf) {
+    msg_send_garbage_t *msg = (msg_send_garbage_t*)buf;
+    state_manager *s_manager = mgr->parent;
+    
+    if (s_manager->board_1->is_controlled) {
+        add_garbage(s_manager->board_1, msg->garbage_amount);
+    }
+    if (s_manager->board_2->is_controlled) {
+        add_garbage(s_manager->board_2, msg->garbage_amount);
+    }
+}
+
 static int tmp = 0;
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
@@ -251,6 +265,8 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
         case MSG_SYNC_BOARD:
             handle_msg_sync_board(mgr, buf);
             break;
+        case MSG_SEND_GARBAGE:
+            handle_msg_send_garbage(mgr, buf);
         default:
             break;
     }
