@@ -229,6 +229,21 @@ void handle_msg_req_board(int client_fd, server_manager *s_manager) {
     printf("[message_handler] req_board player_id=%d\n", player_id);
 }
 
+void handle_msg_set_lose(int client_fd, server_manager *s_manager) {
+    int8_t loser_id = get_player_id_from_fd(client_fd);
+    int8_t winner_id = -1;
+
+    if (s_manager->player_1 == loser_id) {
+        winner_id = s_manager->player_2;
+    }
+    if (s_manager->player_2 == loser_id) {
+        winner_id = s_manager->player_1;
+    }
+
+    if (winner_id == -1) return;
+    declare_winner_versus(s_manager, winner_id);
+}
+
 void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     uint8_t hdr[4];
     ssize_t n = read(client_fd, hdr, sizeof hdr);
@@ -280,6 +295,9 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             break;
         case MSG_REQ_BOARD:
             handle_msg_req_board(client_fd, s_manager);
+            break;
+        case MSG_SET_LOSE:
+            handle_msg_set_lose(client_fd, s_manager);
             break;
         default:
             skip_msg(length, client_fd);

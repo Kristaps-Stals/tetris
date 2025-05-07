@@ -23,3 +23,4 @@ void handle_state(state_manager *s_manager);
 
 void start_game_versus(state_manager *s_manager);
 void apply_sync_board_msg(tetris_board *board, msg_sync_board_t *msg);
+void handle_winner_versus(state_manager *s_manager, int8_t winner);

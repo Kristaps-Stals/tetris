@@ -4,16 +4,20 @@
 #include "client_manager.h"
 #include "time.h"
 
-server_manager* make_server_manager() {
-    server_manager *mgr = malloc(sizeof(server_manager));
-    mgr->state = SERVER_STATE_LOBBY;
+void set_menu_defaults(server_manager *mgr) {
     mgr->player_1 = -1;
     mgr->player_2 = -1;
     mgr->player_1_ready = 0;
     mgr->player_2_ready = 0;
-    mgr->start_game_time_max = 4*1e6; // 4 seconds
-    mgr->start_game_time_left = mgr->start_game_time_max;
+    mgr->state = SERVER_STATE_LOBBY;
     mgr->last_time_char_sent = ' ';
+    mgr->start_game_time_left = mgr->start_game_time_max;
+}
+
+server_manager* make_server_manager() {
+    server_manager *mgr = malloc(sizeof(server_manager));
+    mgr->start_game_time_max = 4*1e6; // 4 seconds
+    set_menu_defaults(mgr);
     return mgr;
 }
 void free_server_manager(server_manager *s_manager) {
@@ -50,13 +54,38 @@ void handle_server_lobby(server_manager *s_manager, int64_t delta_time) {
     sync_lobby(s_manager);
 }
 
+void declare_winner_versus(server_manager *server_manager, uint8_t winner) {
+    printf("[server_manager] winner=%d\n", winner);
+    uint8_t *hdr = make_hdr(0, MSG_WINNER, server_manager->player_2);
+    client_manager_broadcast(hdr, 4, NULL, 0, -1);
+    free_hdr(hdr);
+    set_menu_defaults(server_manager);
+    sync_lobby(server_manager);
+}
+
+void handle_server_game(server_manager *server_manager, int64_t delta_time) {
+    (void) delta_time;
+    if (server_manager->player_1 == -1) {
+        // player 2 wins
+        printf("[server_manager] in versus game, but player_1=-1\n");
+        declare_winner_versus(server_manager, server_manager->player_2);
+        return;
+    }
+    if (server_manager->player_2 == -1) {
+        // player 1 wins
+        printf("[server_manager] in versus game, but player_2=-1\n");
+        declare_winner_versus(server_manager, server_manager->player_1);
+        return;
+    }
+}
+
 void handle_server(server_manager *s_manager, int64_t delta_time) {
     switch(s_manager->state) {
         case SERVER_STATE_LOBBY:
             handle_server_lobby(s_manager, delta_time);
             break;
         case SERVER_STATE_GAME:
-            // handle_server_game(s_manager);
+            handle_server_game(s_manager, delta_time);
             break;
     }
 }

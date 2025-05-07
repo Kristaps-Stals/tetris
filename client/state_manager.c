@@ -74,6 +74,18 @@ void apply_sync_board_msg(tetris_board *board, msg_sync_board_t *msg) {
     draw_tetris_board(board);
 }
 
+void sync_board(tetris_board *board, state_manager *s_manager) {
+    msg_sync_board_t *msg = make_sync_board_msg(board, s_manager);
+    send_message(
+        s_manager->menu_manager->server_socket,
+        MSG_SYNC_BOARD,
+        s_manager->menu_manager->player_id,
+        (void*)msg,
+        sizeof(msg_sync_board_t)
+    );
+    free(msg);
+}
+
 void start_game_solo(state_manager *s_manager) {
     s_manager->state = STATE_GAME_SOLO;    
     tetris_board_settings *board_settings = malloc(sizeof(tetris_board_settings));
@@ -142,6 +154,9 @@ void start_game_versus(state_manager *s_manager) {
 
     clear();
     refresh();
+
+    draw_tetris_board(s_manager->board_1);
+    draw_tetris_board(s_manager->board_2);
 }
 
 void handle_state_menu(state_manager *s_manager) {
@@ -173,7 +188,7 @@ void handle_state_game_solo(state_manager *s_manager) {
     }
 }
 
-int control_board_versus(tetris_board *board, state_manager *s_manager) {
+void control_board_versus(tetris_board *board, state_manager *s_manager) {
     tetris_board_update *upd = malloc(sizeof(tetris_board_update));
     upd->board = board;
     upd->delta_time = s_manager->delta_time;
@@ -182,53 +197,43 @@ int control_board_versus(tetris_board *board, state_manager *s_manager) {
     int ret = update_board(upd, &is_changed);
     free(upd);
     
-    static int64_t cooldown = 0;
+    static int64_t cooldown = 200*1e3;
     cooldown -= s_manager->delta_time;
-
-    if (is_changed && cooldown <= 0) {    
-        msg_sync_board_t *msg = make_sync_board_msg(board, s_manager);
-        send_message(
-            s_manager->menu_manager->server_socket,
-            MSG_SYNC_BOARD,
-            s_manager->menu_manager->player_id,
-            (void*)msg,
-            sizeof(msg_sync_board_t)
-        );
-        free(msg);
-        cooldown = 200*1e3; // 150 ms
+    if (is_changed && cooldown <= 0 && ret != 1) {    
+        sync_board(board, s_manager);
+        cooldown = 200*1e3; // 200 ms
     }
 
-    return ret;
+    if (ret == 1) {
+        // lose
+        send_message(
+            s_manager->menu_manager->server_socket,
+            MSG_SET_LOSE,
+            s_manager->menu_manager->player_id,
+            NULL,
+            0
+        );
+    }
 }
 
 void handle_state_game_versus(state_manager *s_manager) {
     if (s_manager->board_1->is_controlled) {
-        int ret = control_board_versus(s_manager->board_1, s_manager);
-        
-        tetris_board *board = s_manager->board_1;
-        if (ret == 1) {
-            // lose
-            s_manager->state = STATE_MENU;
-            open_menu(s_manager->menu_manager, make_endscreen(board));
-            if (board) deconstruct_tetris_board(board);
-            board = NULL;
-            return;
-        }
+        control_board_versus(s_manager->board_1, s_manager);
     }
     
     if (s_manager->board_2->is_controlled) {
-        int ret = control_board_versus(s_manager->board_2, s_manager);
-
-        tetris_board *board = s_manager->board_2;
-        if (ret == 1) {
-            // lose
-            s_manager->state = STATE_MENU;
-            open_menu(s_manager->menu_manager, make_endscreen(board));
-            if (board) deconstruct_tetris_board(board);
-            board = NULL;
-            return;
-        }
+        control_board_versus(s_manager->board_2, s_manager);
     }
+}
+
+void handle_winner_versus(state_manager *s_manager, int8_t winner) {
+    (void) winner;
+    // open_menu(s_manager->menu_manager, make_endscreen(board));
+    if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
+    s_manager->board_1 = NULL;
+    if (s_manager->board_2) deconstruct_tetris_board(s_manager->board_2);
+    s_manager->board_2 = NULL;
+    s_manager->state = STATE_MENU;
 }
 
 void handle_state(state_manager *s_manager) {

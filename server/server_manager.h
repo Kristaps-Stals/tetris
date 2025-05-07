@@ -20,3 +20,4 @@ server_manager* make_server_manager();
 void free_server_manager(server_manager* s_manager);
 
 void handle_server(server_manager *s_manager, int64_t delta_time);
+void declare_winner_versus(server_manager *server_manager, uint8_t winner);

@@ -73,7 +73,7 @@ void connection_loop(int listen_fd,
         if (client == NULL || client->exists == false) continue;
         int fd = client->sockfd;
         if (FD_ISSET(fd, &rfds)) {
-            printf("[conncetion] data recieved from player_id=%d\n", i);
+            printf("[connection] data recieved from player_id=%d\n", i);
             on_data(fd, s_manager);
         }
     }

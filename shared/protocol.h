@@ -27,7 +27,8 @@ typedef enum {
     MSG_SYNC_BOARD    = 0x22,
     MSG_SEND_GARBAGE  = 0x23,
     MSG_REQ_BOARD     = 0x24,
-    // MSG_WINNER        = 0x25,
+    MSG_WINNER        = 0x25,
+    MSG_SET_LOSE      = 0x26,
 
     // MSG_UPDATE_BOARD  = 0x28
 

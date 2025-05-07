@@ -230,6 +230,12 @@ void handle_msg_send_garbage(menu_manager *mgr, uint8_t *buf) {
     }
 }
 
+void handle_msg_winner(menu_manager *mgr, uint8_t src) {
+    if (src >= 8) return;
+    state_manager *s_manager = mgr->parent;
+    handle_winner_versus(s_manager, src);
+}
+
 static int tmp = 0;
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
@@ -267,6 +273,10 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
             break;
         case MSG_SEND_GARBAGE:
             handle_msg_send_garbage(mgr, buf);
+            break;
+        case MSG_WINNER:
+            handle_msg_winner(mgr, src);
+            break;
         default:
             break;
     }
