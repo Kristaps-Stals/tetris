@@ -34,6 +34,14 @@ int connect_to_server(const char *ip, int port) {
 }
 
 int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payload, uint16_t payload_size) {
+
+    fd_set wfds;
+    FD_ZERO(&wfds);
+    FD_SET(sockfd, &wfds);
+    struct timeval timeout = {0, 0};
+    select(sockfd+1, NULL, &wfds, NULL, &timeout);
+    if (!FD_ISSET(sockfd, &wfds)) return -1;
+
     uint16_t length = 4 + payload_size; // header + payload
     uint8_t *buffer = malloc(length);
     if (!buffer) return -1;
@@ -48,7 +56,7 @@ int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payloa
         memcpy(buffer + 4, payload, payload_size);
     }
 
-    int sent = send(sockfd, buffer, length, 0);
+    int sent = send(sockfd, buffer, length, MSG_NOSIGNAL);
     free(buffer);
     return sent;
 }
@@ -62,6 +70,7 @@ int send_hello(int sockfd, const char *client_id, const char *player_name) {
 
 int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_payload, uint16_t *out_payload_size) {
     if (sockfd < 0) return -1;
+
     uint8_t hdr[4];
     ssize_t r = read(sockfd, hdr, 4);
     if (r != 4) return -1;
@@ -255,8 +264,7 @@ void recieve_all_messages(menu_manager *mgr) {
     }
 }
 
-// handles all incoming lobby-related messages and updates the menu_manager
-// returns true if the lobby state was updated and needs a redraw
+// handles all incoming messages
 void process_server_messages(menu_manager *mgr) {
     if (mgr->server_socket < 0) return;
 

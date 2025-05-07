@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 static client_t clients[MAX_CLIENTS];
 static int      count;
@@ -92,6 +93,14 @@ void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
     for (int i = 0; i < MAX_CLIENTS; i++) {
         const client_t *client = client_manager_get(i);
         if (client->sockfd == except_socketfd || client == NULL || client->exists == false) continue;
+
+        fd_set wfds;
+        FD_ZERO(&wfds);
+        FD_SET(client->sockfd, &wfds);
+        struct timeval timeout = {0, 0};
+        select(client->sockfd+1, NULL, &wfds, NULL, &timeout);
+        if (!FD_ISSET(client->sockfd, &wfds)) continue;
+
         write(clients[i].sockfd, hdr, hdr_len);
         if (payload_len > 0){
             write(clients[i].sockfd, payload, payload_len);

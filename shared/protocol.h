@@ -4,7 +4,7 @@
 #include "../server/server_manager.h"
 
 typedef enum {
-    MSG_HELLO         = 0x00,
+    MSG_HELLO         = 0x07, // DO NOT MAKE ANY ID ZERO !!!
     MSG_WELCOME       = 0x01,
     MSG_DISCONNECT    = 0x02,
     MSG_PING          = 0x03,
