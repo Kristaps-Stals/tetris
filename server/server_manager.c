@@ -28,7 +28,8 @@ void start_game(server_manager *s_manager) {
     srand(time(NULL));
     msg.bag_seed = rand();
     uint8_t *hdr = make_hdr(sizeof(msg_start_game_t), MSG_START_GAME, PLAYER_ID_BROADCAST);
-    client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_start_game_t));
+    client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_start_game_t), -1);
+    free_hdr(hdr);
 }
 
 void handle_server_lobby(server_manager *s_manager, int64_t delta_time) {
@@ -44,7 +45,6 @@ void handle_server_lobby(server_manager *s_manager, int64_t delta_time) {
     } else {
         s_manager->start_game_time_left = s_manager->start_game_time_max;
     }
-
     if (char_to_send == s_manager->last_time_char_sent) return;
     s_manager->last_time_char_sent = char_to_send;
     sync_lobby(s_manager);

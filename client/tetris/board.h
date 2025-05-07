@@ -104,7 +104,7 @@ typedef struct tetromino_construct_info {
 
 tetris_board *construct_tetris_board(const tetris_board_settings *settings);
 void deconstruct_tetris_board(tetris_board *board); 
-int update_board(tetris_board_update *update);
+int update_board(tetris_board_update *update, bool *is_changed);
 void draw_tetris_board(tetris_board *board);
 bool valid_pos(tetromino *test, tetris_board *board);
 tetromino *deepcpy_tetromino(tetromino *a);

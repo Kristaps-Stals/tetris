@@ -78,7 +78,7 @@ void client_manager_remove(int sockfd, server_manager *s_manager) {
     }
 
     uint8_t *leave_hdr = make_hdr(0, MSG_LEAVE, player_id);
-    client_manager_broadcast(leave_hdr, 4, NULL, 0);
+    client_manager_broadcast(leave_hdr, 4, NULL, 0, -1);
     free_hdr(leave_hdr);
 
     clients[player_id].exists = false;
@@ -87,10 +87,11 @@ void client_manager_remove(int sockfd, server_manager *s_manager) {
 }
 
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,
-                              const uint8_t *payload, int payload_len) {
+                              const uint8_t *payload, int payload_len,
+                              int except_socketfd) {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         const client_t *client = client_manager_get(i);
-        if (client == NULL || client->exists == false) continue;
+        if (client->sockfd == except_socketfd || client == NULL || client->exists == false) continue;
         write(clients[i].sockfd, hdr, hdr_len);
         if (payload_len > 0){
             write(clients[i].sockfd, payload, payload_len);

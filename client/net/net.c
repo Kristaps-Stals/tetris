@@ -166,7 +166,7 @@ void handle_msg_disconnect(menu_manager *mgr, uint8_t src) {
     if (mgr->stack[mgr->top]->id == LOBBY_MENU_ID) pop_menu_stack(mgr);
 }
 
-void handle_msg_lobby_sync(menu_manager *mgr, uint8_t *buf, uint8_t src) {
+void handle_msg_sync_lobby(menu_manager *mgr, uint8_t *buf, uint8_t src) {
     (void)src;
     msg_sync_lobby_t *msg = (msg_sync_lobby_t*)buf;
 
@@ -188,12 +188,26 @@ void handle_msg_start_game(menu_manager *mgr, uint8_t *buf) {
     start_game_versus(mgr->parent);
 }
 
+void handle_msg_sync_board(menu_manager *mgr, uint8_t *buf) {
+    msg_sync_board_t *msg = (msg_sync_board_t*)buf;
+    state_manager *s_manager = (state_manager*)mgr->parent;
+    if (s_manager->state != STATE_GAME_VERSUS) return;
+    
+    if (msg->player_id == mgr->player_1 && mgr->player_id != mgr->player_1) {
+        apply_sync_board_msg(s_manager->board_1, msg);
+    }
+    if (msg->player_id == mgr->player_2 && mgr->player_id != mgr->player_2) {
+        apply_sync_board_msg(s_manager->board_2, msg);
+    }
+}
+
+static int tmp = 0;
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
     (void)psz; // unused for now?
-    // mvprintw(2, 2, "%d, %d", tmp, type);
-    // refresh();
-    // tmp++;
+    mvprintw(2, 2, "%d, %d", tmp, type);
+    refresh();
+    tmp++;
 
     switch(type) {
         case MSG_WELCOME:
@@ -213,11 +227,15 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
             lobby_updated = true;
             break;
         case MSG_SYNC_LOBBY:
-            handle_msg_lobby_sync(mgr, buf, src);
+            handle_msg_sync_lobby(mgr, buf, src);
             lobby_updated = true;
             break;
         case MSG_START_GAME:
             handle_msg_start_game(mgr, buf);
+            break;
+        case MSG_SYNC_BOARD:
+            handle_msg_sync_board(mgr, buf);
+            break;
         default:
             break;
     }

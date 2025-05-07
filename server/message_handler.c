@@ -12,6 +12,28 @@
 // #include "../client/net/net.h" 
 // TODO: MOVE TO SHARED. you can implement building payloads not with write, but with send_message() from net.h
 
+int recv_payload(int sockfd, uint16_t length, void *out_payload) {
+    if (sockfd < 0) return -1;
+    ssize_t r;
+    if (length > 0) {
+        r = read(sockfd, out_payload, length);
+        if (r != length) return -1;
+    }
+    return 0;
+}
+
+void skip_msg(uint16_t length, int client_fd) {
+    int toskip = length;
+    char buf[1024];
+    while (toskip > 0) {
+        int byte_amount = sizeof buf;
+        if (toskip < byte_amount) byte_amount = toskip;
+        ssize_t r = read(client_fd, buf, byte_amount);
+        if (r <= 0) break;
+        toskip -= r;
+    }
+}
+
 msg_sync_lobby_t *make_sync_lobby_msg(server_manager *s_manager) {
     msg_sync_lobby_t *msg = malloc(sizeof(msg_sync_lobby_t));
     msg->player_1 = s_manager->player_1;
@@ -35,7 +57,7 @@ void sync_lobby(server_manager *s_manager) {
     msg_sync_lobby_t *msg_sync = make_sync_lobby_msg(s_manager);
     uint8_t *sync_hdr = make_hdr(sizeof(msg_sync_lobby_t), MSG_SYNC_LOBBY, PLAYER_ID_BROADCAST);
 
-    client_manager_broadcast(sync_hdr, 4, (void*)msg_sync, sizeof(msg_sync_lobby_t));
+    client_manager_broadcast(sync_hdr, 4, (void*)msg_sync, sizeof(msg_sync_lobby_t), -1);
 
     free_hdr(sync_hdr);
     free(msg_sync);
@@ -116,18 +138,6 @@ void message_handler_handle_hello(int client_fd, server_manager *s_manager) {
     sync_lobby(s_manager);
 }
 
-void skip_msg(uint16_t length, int client_fd) {
-    int toskip = length;
-    char buf[256];
-    while (toskip > 0) {
-        int byte_amount = sizeof buf;
-        if (toskip < byte_amount) byte_amount = toskip;
-        ssize_t r = read(client_fd, buf, byte_amount);
-        if (r <= 0) break;
-        toskip -= r;
-    }
-}
-
 void handle_msg_leave(uint16_t length, int client_fd, server_manager *s_manager) {
     skip_msg(length, client_fd);
     client_manager_remove(client_fd, s_manager);
@@ -183,6 +193,17 @@ void handle_msg_toggle_player(uint16_t length, int client_fd, server_manager *s_
     }
 }
 
+void handle_msg_sync_board(uint16_t length, int client_fd) {
+    msg_sync_board_t msg;
+    if (recv_payload(client_fd, length, &msg) != 0) {
+        return;
+    }
+    printf("[message_handler] sending board sync, player_id=%d, score=%d\n", msg.player_id, msg.counters.score);
+    uint8_t *hdr = make_hdr(sizeof(msg_sync_board_t), MSG_SYNC_BOARD, PLAYER_ID_BROADCAST);
+    client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_sync_board_t), client_fd);
+    free_hdr(hdr);
+}
+
 void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     uint8_t hdr[4];
     ssize_t n = read(client_fd, hdr, sizeof hdr);
@@ -225,6 +246,9 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
         case MSG_TOGGLE_PLAYER:
             handle_msg_toggle_player(length, client_fd, s_manager);
             sync_lobby(s_manager);
+            break;
+        case MSG_SYNC_BOARD:
+            handle_msg_sync_board(length, client_fd);
             break;
         default:
             skip_msg(length, client_fd);

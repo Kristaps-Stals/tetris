@@ -66,7 +66,6 @@ void connection_loop(int listen_fd,
                    ntohs(cliaddr.sin_port));
             on_new(client_fd, s_manager);
         }
-        ready--;
     }
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -74,8 +73,8 @@ void connection_loop(int listen_fd,
         if (client == NULL || client->exists == false) continue;
         int fd = client->sockfd;
         if (FD_ISSET(fd, &rfds)) {
+            printf("[conncetion] data recieved from player_id=%d\n", i);
             on_data(fd, s_manager);
-            ready--;
         }
     }
 }

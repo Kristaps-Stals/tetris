@@ -540,10 +540,11 @@ bool valid_pos(tetromino *test, tetris_board *board) {
 
 // tries to move the active tetromino in <board> down
 // returns 1 when game lost due to out of bounds garbage
-int apply_gravity(tetris_board *board) {
+int apply_gravity(tetris_board *board, bool *is_changed) {
     board->counters->gravity_count++;
     if (move_tetromino(board, board->active_tetromino, DIR_DOWN)) {
         board->counters->last_rotation = -1;
+        *is_changed = true;
         return 0;
     }
     if (
@@ -552,6 +553,7 @@ int apply_gravity(tetris_board *board) {
         board->counters->gravity_count >= board->limits->gravity_count
     ) {
         int ret = hard_drop(board);
+        *is_changed = true;
         if (ret == 1) return 1;
     }
     return 0;
@@ -613,7 +615,7 @@ void update_info_manager(tetris_board *board) {
     wrefresh(info_manager->info_win);
 }
 
-int update_controlled(tetris_board_update *update) {
+int update_controlled(tetris_board_update *update, bool *is_changed) {
     int user_input = update->user_input;
     ll delta_time = update->delta_time;
     tetris_board *board = update->board;
@@ -623,31 +625,36 @@ int update_controlled(tetris_board_update *update) {
     counters->total_time_elapsed += delta_time;
     update_tetris_difficulty(board);
 
-    if (user_input == 'p') add_garbage(board, 1);
+    // if (user_input == 'p') add_garbage(board, 1);
 
     if (user_input == get_keyboard_button(GAME_ROTATE_RIGHT)){
         if (rotate_tetromino(board, DIR_RIGHT)) {
             handle_movement(board);
+            *is_changed = true;
         }
     }
     if (user_input == get_keyboard_button(GAME_ROTATE_LEFT)) {
         if (rotate_tetromino(board, DIR_LEFT)) {
             handle_movement(board);
+            *is_changed = true;
         }
     }
     if (user_input == get_keyboard_button(GAME_HOLD)) {
         hold_tetromino(board);
+        *is_changed = true;
     }
     if (user_input == get_keyboard_button(GAME_RIGHT)) {
         if (move_tetromino(board, board->active_tetromino, DIR_RIGHT)) {
             handle_movement(board);
             board->counters->last_rotation = -1;
+            *is_changed = true;
         }
     }
     if (user_input == get_keyboard_button(GAME_LEFT)) {
         if (move_tetromino(board, board->active_tetromino, DIR_LEFT)) {
             handle_movement(board);
             board->counters->last_rotation = -1;
+            *is_changed = true;
         }
     }
     if (user_input == get_keyboard_button(GAME_SOFTDROP)) {
@@ -656,11 +663,13 @@ int update_controlled(tetris_board_update *update) {
             counters->time_since_gravity = 0;
             board->counters->last_rotation = -1;
             counters->score += 1; // score for soft drop
+            *is_changed = true;
         }
     }
     if (user_input == get_keyboard_button(GAME_HARDDROP)) {
         board->counters->last_rotation = -1;
         int ret = hard_drop(board);
+        *is_changed = true;
         if (ret == 1) return 1;
     }
 
@@ -673,7 +682,7 @@ int update_controlled(tetris_board_update *update) {
     counters->time_since_gravity += delta_time;
     while (counters->time_since_gravity > limits->time_since_gravity) {
         counters->time_since_gravity -= limits->time_since_gravity;
-        int ret = apply_gravity(board);
+        int ret = apply_gravity(board, is_changed);
         if (ret == 1) return ret;
     }
 
@@ -681,19 +690,20 @@ int update_controlled(tetris_board_update *update) {
 
     // lose condition
     if (!valid_pos(board->active_tetromino, board)) {
+        *is_changed = true;
         return 1;
     }
     return 0;
 }
 
 // returns 1 if game ended (0 otherwise)
-int update_board(tetris_board_update *update) {
+int update_board(tetris_board_update *update, bool *is_changed) {
     tetris_board *board = update->board;
     
     // user input
     int ret = 0;
     if (board->is_controlled) {
-        ret = update_controlled(update);
+        ret = update_controlled(update, is_changed);
     }
 
     draw_tetris_board(board);
