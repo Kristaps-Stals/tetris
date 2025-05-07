@@ -31,7 +31,7 @@ void free_state_manager(state_manager* s_manager) {
     free(s_manager);
 }
 
-msg_sync_board_t *make_sync_board_msg(tetris_board *board) {
+msg_sync_board_t *make_sync_board_msg(tetris_board *board, state_manager *s_manager) {
     msg_sync_board_t *msg = malloc(sizeof(msg_sync_board_t));
     msg->active_tetromino = *board->active_tetromino;
     msg->armed_garbage = board->garbage_manager->armed_garbage;
@@ -50,6 +50,10 @@ msg_sync_board_t *make_sync_board_msg(tetris_board *board) {
         msg->queued_garbage += board->garbage_manager->queue_amount[i];
     }
     msg->player_id = board->player_id;
+
+    msg->player_1 = s_manager->menu_manager->player_1;
+    msg->player_2 = s_manager->menu_manager->player_2;
+    msg->start_bag_seed = s_manager->menu_manager->bag_seed;
     return msg;
 }
 
@@ -174,7 +178,7 @@ int control_board_versus(tetris_board *board, state_manager *s_manager) {
     free(upd);
 
     if (is_changed) {
-        msg_sync_board_t *msg = make_sync_board_msg(board);
+        msg_sync_board_t *msg = make_sync_board_msg(board, s_manager);
         send_message(
             s_manager->menu_manager->server_socket,
             MSG_SYNC_BOARD,
@@ -191,9 +195,10 @@ int control_board_versus(tetris_board *board, state_manager *s_manager) {
 void handle_state_game_versus(state_manager *s_manager) {
     if (s_manager->board_1->is_controlled) {
         int ret = control_board_versus(s_manager->board_1, s_manager);
-
+        
         tetris_board *board = s_manager->board_1;
         if (ret == 1) {
+            // lose
             s_manager->state = STATE_MENU;
             open_menu(s_manager->menu_manager, make_endscreen(board));
             if (board) deconstruct_tetris_board(board);
@@ -207,6 +212,7 @@ void handle_state_game_versus(state_manager *s_manager) {
 
         tetris_board *board = s_manager->board_2;
         if (ret == 1) {
+            // lose
             s_manager->state = STATE_MENU;
             open_menu(s_manager->menu_manager, make_endscreen(board));
             if (board) deconstruct_tetris_board(board);
@@ -214,10 +220,6 @@ void handle_state_game_versus(state_manager *s_manager) {
             return;
         }
     }
-
-    // msg_sync_board_t *msg = make_sync_board_msg(s_manager->board_1);
-    // apply_sync_board_msg(s_manager->board_2, msg);
-    // free(msg);
 }
 
 void handle_state(state_manager *s_manager) {

@@ -56,9 +56,10 @@ int send_message(int sockfd, uint8_t type, uint8_t player_id, const void *payloa
         memcpy(buffer + 4, payload, payload_size);
     }
 
-    int sent = send(sockfd, buffer, length, MSG_NOSIGNAL);
+    // int sent = send(sockfd, buffer, length, MSG_NOSIGNAL);
+    write(sockfd, buffer, length);
     free(buffer);
-    return sent;
+    return 0;
 }
 
 int send_hello(int sockfd, const char *client_id, const char *player_name) {
@@ -200,7 +201,12 @@ void handle_msg_start_game(menu_manager *mgr, uint8_t *buf) {
 void handle_msg_sync_board(menu_manager *mgr, uint8_t *buf) {
     msg_sync_board_t *msg = (msg_sync_board_t*)buf;
     state_manager *s_manager = (state_manager*)mgr->parent;
-    if (s_manager->state != STATE_GAME_VERSUS) return;
+    if (s_manager->state != STATE_GAME_VERSUS) {
+        s_manager->menu_manager->player_1 = msg->player_1;
+        s_manager->menu_manager->player_2 = msg->player_2;
+        s_manager->menu_manager->bag_seed = msg->start_bag_seed;
+        start_game_versus(s_manager);
+    }
     
     if (msg->player_id == mgr->player_1 && mgr->player_id != mgr->player_1) {
         apply_sync_board_msg(s_manager->board_1, msg);

@@ -63,7 +63,7 @@ typedef struct __attribute__((packed)) {
 } msg_start_game_t;
 
 typedef struct __attribute__((packed)) {
-    int player_id;
+    int8_t player_id;
     char state[40][10];
     tetromino active_tetromino;
     board_counters counters;
@@ -72,7 +72,9 @@ typedef struct __attribute__((packed)) {
     int held_tetromino;
     int current_level;
     int armed_garbage;
-    int queued_garbage;   
+    int queued_garbage;
+    int8_t player_1, player_2;
+    int32_t start_bag_seed;
 } msg_sync_board_t;
 
 uint8_t *make_hdr(uint16_t payload_length, uint8_t type, uint8_t src);
