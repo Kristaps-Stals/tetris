@@ -115,25 +115,26 @@ textbox *make_settings_menu() {
         WRITE_ELEMENT_ID,
         make_size_info(1, 16, 2, 13),
         make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN - 1, WRITE_ID_NICKNAME),
-        make_neighbours(4, -1, 4, -1),
+        make_neighbours(6, -1, 4, -1), 
         A_NORMAL
     );
 
+    // save button
     elems[3] = make_element(
         BUTTON_ID,
         make_size_info(1, 4, h - 2, w - 1 - 4 - 6),
         make_button("save", SAVE_SETTINGS),
-        make_neighbours(2, 4, 2, 4),
+        make_neighbours(2, 4, 2, -1),
         A_NORMAL
     );
-    elems[3]->visible = false;  // hidden until text actually changes
+    elems[3]->visible = false;
 
     // back button
     elems[4] = make_element(
         BUTTON_ID,
         make_size_info(1, 4, h - 2, w - 1 - 4 - 1),
-        make_button("back", CLOSE_MENU),    // ← use CLOSE_MENU
-        make_neighbours(2, 2, 2, 2),
+        make_button("back", CLOSE_MENU),
+        make_neighbours(6, -1, 2, 3), 
         A_NORMAL
     );
 
@@ -151,7 +152,7 @@ textbox *make_settings_menu() {
         BUTTON_ID,
         make_size_info(1, 4, 1, w - 1 - 4 - 2),
         make_button("edit", OPEN_KEYBINDINGS),
-        make_neighbours(4, -1, 4, -1),
+        make_neighbours(4, -1, 2, -1),
         A_NORMAL
     );
 
