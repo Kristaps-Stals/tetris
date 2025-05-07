@@ -10,8 +10,7 @@
 #include <fcntl.h>
 #include "settings.h"
 
-// move last_saved_nick to file scope
-static char last_saved_nick[NICKNAME_MAX_LEN] = "";
+char last_saved_nick[NICKNAME_MAX_LEN] = "";
 
 menu_manager *make_menu_manager(void* parent) {
     menu_manager *manager = malloc(sizeof(menu_manager));
@@ -81,49 +80,80 @@ textbox *make_main_menu() {
 }
 
 textbox *make_settings_menu() {
+    // snapshot the currently saved nick
+    strncpy(last_saved_nick, get_nickname(), NICKNAME_MAX_LEN);
+
     int w = 40;
     int h = 20;
-    int x = (COLS-w)/2;
-    int y = (LINES-h)/2;
-
+    int x = (COLS - w) / 2;
+    int y = (LINES - h) / 2;
     size_info *pos = make_size_info(h, w, y, x);
-    int ELEM_CNT = 7;
-    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
 
-    size_info *pos_text1 = make_size_info(1, 9, 0, 2);
-    textbox_text *info_text1 = make_text("Settings");
-    elems[0] = make_element(TEXT_ID, pos_text1, info_text1, NULL, A_NORMAL);
+    const int ELEM_CNT = 7;
+    textbox_element **elems = malloc(ELEM_CNT * sizeof(textbox_element*));
 
-    // nickname
-    size_info *pos_nick_label = make_size_info(1, 8, 2, 3);
-    textbox_text *info_nick_label = make_text("Nickname");
-    elems[1] = make_element(TEXT_ID, pos_nick_label, info_nick_label, NULL, A_NORMAL);
+    // title
+    elems[0] = make_element(
+        TEXT_ID,
+        make_size_info(1, 9, 0, 2),
+        make_text("Settings"),
+        NULL,
+        A_NORMAL
+    );
 
-    size_info *pos_nick_write = make_size_info(1, 16, 2, 13);
-    textbox_neighbours *next_nick_write = make_neighbours(4, -1, 4, -1);
-    textbox_write *info_nick_write = make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN-1, 1000);
-    elems[2] = make_element(WRITE_ELEMENT_ID, pos_nick_write, info_nick_write, next_nick_write, A_NORMAL);
+    // nickname label
+    elems[1] = make_element(
+        TEXT_ID,
+        make_size_info(1, 8, 2, 3),
+        make_text("Nickname"),
+        NULL,
+        A_NORMAL
+    );
 
-    // save button
-    size_info *pos_save_button = make_size_info(1, 4, h-2, w-1-4-6);
-    textbox_neighbours *next_save_button = make_neighbours(5, 4, 5, 4);
-    textbox_button *info_save_button = make_button("save", SAVE_SETTINGS);
-    elems[3] = make_element(BUTTON_ID, pos_save_button, info_save_button, next_save_button, A_NORMAL);
-    elems[3]->visible = false; // initially grayed out
+    // nickname input field
+    elems[2] = make_element(
+        WRITE_ELEMENT_ID,
+        make_size_info(1, 16, 2, 13),
+        make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN - 1, WRITE_ID_NICKNAME),
+        make_neighbours(4, -1, 4, -1),
+        A_NORMAL
+    );
 
-    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4-1);
-    textbox_neighbours *next_button1 = make_neighbours(3, 3, 3, 3);
-    textbox_button *info_button1 = make_button("back", CLOSE_MENU);
-    elems[4] = make_element(BUTTON_ID, pos_button1, info_button1, next_button1, A_NORMAL);
+    elems[3] = make_element(
+        BUTTON_ID,
+        make_size_info(1, 4, h - 2, w - 1 - 4 - 6),
+        make_button("save", SAVE_SETTINGS),
+        make_neighbours(2, 4, 2, 4),
+        A_NORMAL
+    );
+    elems[3]->visible = false;  // hidden until text actually changes
 
-    size_info *pos_text2 = make_size_info(1, 11, 1, 3);
-    textbox_text *info_text2 = make_text("Keybindings");
-    elems[5] = make_element(TEXT_ID, pos_text2, info_text2, NULL, A_NORMAL);
+    // back button
+    elems[4] = make_element(
+        BUTTON_ID,
+        make_size_info(1, 4, h - 2, w - 1 - 4 - 1),
+        make_button("back", CLOSE_MENU),    // ← use CLOSE_MENU
+        make_neighbours(2, 2, 2, 2),
+        A_NORMAL
+    );
 
-    size_info *pos_button2 = make_size_info(1, 4, 1, w-1-4-2);
-    textbox_neighbours *next_button2 = make_neighbours(4, -1, 4, -1);
-    textbox_button *info_button2 = make_button("edit", OPEN_KEYBINDINGS);
-    elems[6] = make_element(BUTTON_ID, pos_button2, info_button2, next_button2, A_NORMAL);
+    // keybindings label
+    elems[5] = make_element(
+        TEXT_ID,
+        make_size_info(1, 11, 1, 3),
+        make_text("Keybindings"),
+        NULL,
+        A_NORMAL
+    );
+
+    // edit‐keybindings button
+    elems[6] = make_element(
+        BUTTON_ID,
+        make_size_info(1, 4, 1, w - 1 - 4 - 2),
+        make_button("edit", OPEN_KEYBINDINGS),
+        make_neighbours(4, -1, 4, -1),
+        A_NORMAL
+    );
 
     return make_textbox(pos, elems, ELEM_CNT, 2, SETTINGS_MENU_ID);
 }
@@ -509,12 +539,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             ret = UPDSTATE_SOLO;
             break;
         case OPEN_SETTINGS:
-            // set last_saved_nick to current nickname
-            strncpy(last_saved_nick, get_nickname(), NICKNAME_MAX_LEN);
             open_menu(manager, make_settings_menu());
-            update_save_button_visibility(manager);
             break;
-        case OPEN_KEYBINDINGS:
+        case OPEN_KEYBINDINGS:  
             open_menu(manager, make_keybind_menu());
             break;
         case OPEN_JOIN:
@@ -539,16 +566,13 @@ int manage_menus(menu_manager *manager, int user_input) {
         case TOGGLE_PLAYER_STATE:
             toggle_player_state(manager);
             break;
-        case SAVE_SETTINGS: // todo maybe move this if to somewhere else..
+        case SAVE_SETTINGS:
             if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
                 save_nickname_if_changed(manager, true);
-                pop_menu_stack(manager); // close settings after save
+                pop_menu_stack(manager);
             }
             break;
         case CLOSE_MENU:
-            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
-                save_nickname_if_changed(manager, false);
-            }
             break;
     }
 
