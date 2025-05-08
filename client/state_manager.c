@@ -13,6 +13,7 @@
 #include <string.h>
 #include "state_manager.h"
 #include "../shared/protocol.h"
+#include "menus/settings.h"
 
 state_manager* make_state_manager() {
     state_manager *s_manager = malloc(sizeof(state_manager));
@@ -99,6 +100,7 @@ void start_game_solo(state_manager *s_manager) {
     board_settings->controlled = true;
     board_settings->sockfd = -1;
     board_settings->player_id = 0;
+    sprintf(board_settings->player_name, "%s", get_nickname());
     s_manager->board_1 = construct_tetris_board(board_settings);
     free(board_settings);
 
@@ -130,6 +132,7 @@ void start_game_versus(state_manager *s_manager) {
         board_settings->sockfd = m_manager->server_socket;
     }
     board_settings->player_id = m_manager->player_1;
+    sprintf(board_settings->player_name, "%s", m_manager->slot_names[m_manager->player_1]);
     s_manager->board_1 = construct_tetris_board(board_settings);
     free(board_settings);
 
@@ -149,6 +152,7 @@ void start_game_versus(state_manager *s_manager) {
         board_settings->sockfd = m_manager->server_socket;
     }
     board_settings->player_id = m_manager->player_2;
+    sprintf(board_settings->player_name, "%s", m_manager->slot_names[m_manager->player_2]);
     s_manager->board_2 = construct_tetris_board(board_settings);
     free(board_settings);
 
@@ -227,7 +231,6 @@ void handle_state_game_versus(state_manager *s_manager) {
 }
 
 void handle_winner_versus(state_manager *s_manager, msg_winner_t *msg) {
-
     open_menu(s_manager->menu_manager, make_endscreen_versus(msg));
     if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
     s_manager->board_1 = NULL;

@@ -69,6 +69,7 @@ typedef struct tetris_board {
     bool is_controlled; // is this board being controlled by this client?
     int player_id; // player id used for multiplayer
     int sockfd; // for sending messages if needed, -1 if doesnt exist
+    char *player_name;
     
     tetromino *active_tetromino; // actively falling tetromino
     board_counters *counters, *limits; // counters count, triggers action when counter hits limits
@@ -90,6 +91,7 @@ typedef struct tetris_board_settings {
     bool controlled;
     int player_id;
     int sockfd;
+    char player_name[35];
 } tetris_board_settings;
 
 // information used when updating tetris board

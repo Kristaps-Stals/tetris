@@ -8,6 +8,7 @@
 #include "score.h"
 #include "../menus/keyboard_manager.h"
 #include "../net/net.h"
+#include "../../shared/kstring.h"
 typedef long long ll;
 
 const int DIR_UP = 0;
@@ -174,7 +175,7 @@ board_counters *make_default_limits() {
 
 tetris_info_manager *make_default_info_manager(tetris_board *board) {
     tetris_info_manager *info_manager = malloc(sizeof(tetris_info_manager));
-    info_manager->info_h = 3;
+    info_manager->info_h = 4;
     info_manager->info_w = board->win_w;
     info_manager->info_x = board->win_x;
     info_manager->info_y = board->win_y - info_manager->info_h; 
@@ -420,6 +421,7 @@ tetris_board *construct_tetris_board(const tetris_board_settings *settings) {
     board->is_controlled = settings->controlled;
     board->player_id = settings->player_id;
     board->sockfd = settings->sockfd;
+    board->player_name = copy_text(settings->player_name);
 
     return board;
 }
@@ -600,19 +602,25 @@ void update_info_manager(tetris_board *board) {
     tetris_info_manager *info_manager = board->info_manager;
     
     werase(info_manager->info_win);
-    char buf[30];
+    char buf[50];
     
+    if (board->player_name) {
+        sprintf(buf, "%s", board->player_name);
+        int mid = (info_manager->info_w-strlen(buf))/2;
+        mvwprintw(info_manager->info_win, 0, mid, "%s", buf); 
+    }
+
     sprintf(buf, "Time: %llds", board->counters->total_time_elapsed/1000000);
     int mid = (info_manager->info_w-strlen(buf))/2;
-    mvwprintw(info_manager->info_win, 0, mid, "%s", buf); 
+    mvwprintw(info_manager->info_win, 1, mid, "%s", buf); 
 
     sprintf(buf, "Level: %d", board->difficulty_manager->current_level);
     mid = (info_manager->info_w-strlen(buf))/2;
-    mvwprintw(info_manager->info_win, 1, mid, "%s", buf);
+    mvwprintw(info_manager->info_win, 2, mid, "%s", buf);
 
     sprintf(buf, "Score: %d", board->counters->score);
     mid = (info_manager->info_w-strlen(buf))/2;
-    mvwprintw(info_manager->info_win, 2, mid, "%s", buf);
+    mvwprintw(info_manager->info_win, 3, mid, "%s", buf);
 
     wrefresh(info_manager->info_win);
 }
@@ -906,5 +914,6 @@ void deconstruct_tetris_board(tetris_board *board) {
     free_tetris_difficulty_manager(board->difficulty_manager);
     free_info_manager(board->info_manager);
     free_garbage_manager(board->garbage_manager);
+    if (board->player_name) free(board->player_name);
     free(board);
 }
