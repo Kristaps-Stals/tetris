@@ -229,7 +229,7 @@ tetris_garbage_manager *construct_tetris_garbage_manager(tetris_board *board) {
 
     manager->armed_garbage = 0;
     manager->max_garbage_in_queue = 20;
-    manager->time_to_arm = 1000*1e3; // 1000 ms to arm
+    manager->time_to_arm = 2000*1e3; // 1000 ms to arm
     manager->queue_amount = malloc(manager->max_garbage_in_queue*sizeof(int));
     manager->queue_timer = malloc(manager->max_garbage_in_queue*sizeof(int));
     for (int i = 0; i < manager->max_garbage_in_queue; i++) {
