@@ -296,6 +296,80 @@ textbox *make_join_menu() {
     return make_textbox(pos, elems, ELEM_CNT, 0, JOIN_LOBBY_MENU_ID);
 }
 
+textbox *make_endscreen_versus(msg_winner_t *msg) {
+    int w = 40;
+    int h = 20;
+    int x = (COLS-w)/2;
+    int y = (LINES-h)/2;
+
+    int midh = h/2;
+    char text[100];
+
+    size_info *pos = make_size_info(h, w, y, x);
+    int ELEM_CNT = 8;
+    textbox_element **elems = malloc(ELEM_CNT*sizeof(textbox_element*));
+
+    sprintf(text, "Endscreen");
+    size_info *pos_text1 = make_size_info(1, (int)strlen(text), 0, 2);
+    textbox_text *info_text1 = make_text(text);
+    elems[0] = make_element(TEXT_ID, pos_text1, info_text1, NULL, A_NORMAL);
+
+    sprintf(text, "GAME OVER");
+    int text2_x = (w-(int)strlen(text))/2;
+    size_info *pos_text2 = make_size_info(1, (int)strlen(text), midh-4, text2_x);
+    textbox_text *info_text2 = make_text(text);
+    elems[1] = make_element(TEXT_ID, pos_text2, info_text2, NULL, A_NORMAL);
+
+    sprintf(text, "%.2f s", msg->total_time / 1000000.0);
+    int text3_x = (w-(int)strlen(text))/2;
+    size_info *pos_text3 = make_size_info(1, (int)strlen(text), midh-3, text3_x);
+    textbox_text *info_text3 = make_text(text);
+    elems[2] = make_element(TEXT_ID, pos_text3, info_text3, NULL, A_NORMAL);
+
+    sprintf(text, "Player_1: %s", msg->player_names[0]);
+    if (msg->winner == 0) {
+        sprintf(text, "Player_1: %s (winner)", msg->player_names[0]);
+    }
+    int posx = (w-(int)strlen(text))/2;
+    size_info *pos_text = make_size_info(1, (int)strlen(text), midh-1, posx);
+    textbox_text *info_text = make_text(text);
+    elems[3] = make_element(TEXT_ID, pos_text, info_text, NULL, A_NORMAL);
+    if (msg->winner == 0) {
+        elems[3]->attributes = COLOR_PAIR(13);
+    }
+
+    sprintf(text, "Score: %d", msg->score_player_1);
+    int text4_x = (w-(int)strlen(text))/2;
+    size_info *pos_text4 = make_size_info(1, (int)strlen(text), midh, text4_x);
+    textbox_text *info_text4 = make_text(text);
+    elems[4] = make_element(TEXT_ID, pos_text4, info_text4, NULL, A_NORMAL);
+    
+    sprintf(text, "Player_2: %s", msg->player_names[1]);
+    if (msg->winner == 1) {
+        sprintf(text, "Player_2: %s (winner)", msg->player_names[1]);
+    }
+    posx = (w-(int)strlen(text))/2;
+    pos_text = make_size_info(1, (int)strlen(text), midh+2, posx);
+    info_text = make_text(text);
+    elems[5] = make_element(TEXT_ID, pos_text, info_text, NULL, A_NORMAL);
+    if (msg->winner == 1) {
+        elems[5]->attributes = COLOR_PAIR(13);
+    }
+
+    sprintf(text, "Score: %d", msg->score_player_2);
+    posx = (w-(int)strlen(text))/2;
+    pos_text = make_size_info(1, (int)strlen(text), midh+3, posx);
+    info_text = make_text(text);
+    elems[6] = make_element(TEXT_ID, pos_text, info_text, NULL, A_NORMAL);
+
+    size_info *pos_button1 = make_size_info(1, 4, h-2, w-1-4);
+    textbox_neighbours *next_button1 = make_neighbours(-1, -1, -1, -1);
+    textbox_button *info_button1 = make_button("back", CLOSE_VERSUS_ENDSCREEN);
+    elems[7] = make_element(BUTTON_ID, pos_button1, info_button1, next_button1, A_NORMAL);
+
+    return make_textbox(pos, elems, ELEM_CNT, 7, ENDSCREEN_VERSUS_MENU_ID);
+}
+
 textbox *make_lobby_menu() {
     int w = 40;
     int h = 20;
@@ -469,7 +543,7 @@ bool open_menu(menu_manager *manager, textbox *new_menu) {
 
 // pops the top textbox in menu manager
 void pop_menu_stack(menu_manager *manager) {
-    if (manager->server_socket >= 0) {
+    if (manager->server_socket >= 0 && manager->stack[manager->top]->id == LOBBY_MENU_ID) {
         // send MSG_LEAVE before disconnecting
         char reason[] = "Left the lobby";
         send_message(manager->server_socket, MSG_LEAVE, manager->player_id, reason, sizeof(reason));
@@ -512,6 +586,14 @@ int update_menus(menu_manager *manager, int user_input) {
 void close_keybindings(menu_manager *manager) {
     load_binds();
     pop_menu_stack(manager);
+}
+
+void close_versus_endscreen(menu_manager* manager) {
+    req_lobby_sync(manager);
+    pop_menu_stack(manager);
+    if (manager->stack[manager->top]->id == LOBBY_MENU_ID) {
+        manager->stack[manager->top]->element_selected = 15;
+    }
 }
 
 void toggle_ready_state(menu_manager *manager) {
@@ -569,6 +651,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             save_nickname_if_changed(manager);
             save_settings();
             pop_menu_stack(manager);
+            break;
+        case CLOSE_VERSUS_ENDSCREEN:
+            close_versus_endscreen(manager);
             break;
         case CLOSE_MENU:
             break;

@@ -341,9 +341,7 @@ void send_garbage(tetris_board *board, int garbage_amount) {
     if (garbage_amount == 0) return;
 
     // 3. send remainng to opponent
-    msg_send_garbage_t msg;
-    msg.garbage_amount = garbage_amount;
-    send_message(board->sockfd, MSG_SEND_GARBAGE, board->player_id, &msg, sizeof(msg_send_garbage_t));
+    send_message(board->sockfd, MSG_SEND_GARBAGE, garbage_amount, NULL, 0);
 
     refresh();
 }

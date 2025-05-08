@@ -17,7 +17,12 @@ void set_menu_defaults(server_manager *mgr) {
 server_manager* make_server_manager() {
     server_manager *mgr = malloc(sizeof(server_manager));
     mgr->start_game_time_max = 4*1e6; // 4 seconds
-    mgr->last_winner = -1;
+    mgr->last_winner.player_names[0][0] = 0;
+    mgr->last_winner.player_names[1][0] = 0;
+    mgr->last_winner.score_player_1 = 0;
+    mgr->last_winner.score_player_2 = 0;
+    mgr->last_winner.total_time = 0;
+    mgr->last_winner.winner = -1;
     set_menu_defaults(mgr);
     return mgr;
 }
@@ -55,14 +60,25 @@ void handle_server_lobby(server_manager *s_manager, int64_t delta_time) {
     sync_lobby(s_manager);
 }
 
-void declare_winner_versus(server_manager *server_manager, uint8_t winner) {
-    server_manager->last_winner = winner;
-    printf("[server_manager] winner=%d\n", winner);
-    uint8_t *hdr = make_hdr(0, MSG_WINNER, winner);
-    client_manager_broadcast(hdr, 4, NULL, 0, -1);
+void declare_winner_versus(server_manager *s_manager, uint8_t winner) {
+    s_manager->last_winner.winner = winner;
+    if (s_manager->player_1 != -1) {
+        sprintf(s_manager->last_winner.player_names[0], "%s", client_manager_get(s_manager->player_1)->name);
+    } else {
+        sprintf(s_manager->last_winner.player_names[0], "<disconnected>");
+    }
+    if (s_manager->player_2 != -1) {
+        sprintf(s_manager->last_winner.player_names[1], "%s", client_manager_get(s_manager->player_2)->name);
+    } else {
+        sprintf(s_manager->last_winner.player_names[1], "<disconnected>");
+    }
+    msg_winner_t msg = s_manager->last_winner;
+    printf("[server_manager] winner=player_%d, score_player_1=%d, score_player_2=%d, time=%ld\n", winner, msg.score_player_1, msg.score_player_2, msg.total_time);
+    uint8_t *hdr = make_hdr(sizeof(msg_winner_t), MSG_WINNER, PLAYER_ID_BROADCAST);
+    client_manager_broadcast(hdr, 4, (void*)&s_manager->last_winner, sizeof(msg_winner_t), -1);
     free_hdr(hdr);
-    set_menu_defaults(server_manager);
-    sync_lobby(server_manager);
+    set_menu_defaults(s_manager);
+    sync_lobby(s_manager);
 }
 
 void handle_server_game(server_manager *server_manager, int64_t delta_time) {
@@ -70,13 +86,13 @@ void handle_server_game(server_manager *server_manager, int64_t delta_time) {
     if (server_manager->player_1 == -1) {
         // player 2 wins
         printf("[server_manager] in versus game, but player_1=-1\n");
-        declare_winner_versus(server_manager, server_manager->player_2);
+        declare_winner_versus(server_manager, 1);
         return;
     }
     if (server_manager->player_2 == -1) {
         // player 1 wins
         printf("[server_manager] in versus game, but player_2=-1\n");
-        declare_winner_versus(server_manager, server_manager->player_1);
+        declare_winner_versus(server_manager, 0);
         return;
     }
 }

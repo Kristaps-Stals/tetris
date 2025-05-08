@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "../shared/protocol.h"
 
 enum {
     SERVER_STATE_LOBBY = 0,
@@ -14,7 +15,7 @@ typedef struct {
     int64_t start_game_time_left; // in microseconds
     int64_t start_game_time_max;
     int last_time_char_sent;
-    int last_winner;
+    msg_winner_t last_winner;
 } server_manager;
 
 server_manager* make_server_manager();

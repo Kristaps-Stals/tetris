@@ -19,3 +19,5 @@ void attempt_join_lobby(menu_manager *manager);
 char* fetch_text_from_element(menu_manager *manager, int write_id, int *length);
 
 void process_server_messages(menu_manager *mgr);
+
+void req_lobby_sync(menu_manager *mgr);

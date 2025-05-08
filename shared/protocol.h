@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
 #include "../client/tetris/board.h"
-#include "../server/server_manager.h"
 
 typedef enum {
     MSG_HELLO         = 0x07, // DO NOT MAKE ANY ID ZERO !!!
@@ -16,6 +15,7 @@ typedef enum {
     MSG_TOGGLE_PLAYER = 0x11, // request to become a player or unbecome a player
     MSG_SYNC_LOBBY    = 0x12, // sync lobby information
     MSG_START_GAME    = 0x13,
+    MSG_REQ_LOBBY     = 0x14, // request to sync lobby
 
     // MSG_REQ_SYNC      = 0x18,
     // MSG_MOVE          = 0x19,
@@ -59,7 +59,6 @@ typedef struct __attribute__((packed)) {
     uint8_t start_counter;
 } msg_sync_lobby_t;
 
-
 typedef struct __attribute__((packed)) {
     int8_t player_1, player_2;
     int32_t bag_seed;
@@ -80,9 +79,16 @@ typedef struct __attribute__((packed)) {
     int32_t start_bag_seed;
 } msg_sync_board_t;
 
+// typedef struct __attribute__((packed)) {
+//     int8_t garbage_amount;
+// } msg_send_garbage_t;
+
 typedef struct __attribute__((packed)) {
-    int8_t garbage_amount;
-} msg_send_garbage_t;
+    int64_t total_time;
+    int32_t score_player_1, score_player_2;
+    int32_t winner;
+    char player_names[2][MAX_NAME_LEN];
+} msg_winner_t;
 
 uint8_t *make_hdr(uint16_t payload_length, uint8_t type, uint8_t src);
 void free_hdr(uint8_t *hdr);

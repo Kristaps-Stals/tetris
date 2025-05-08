@@ -204,35 +204,43 @@ void handle_msg_sync_board(uint16_t length, int client_fd, server_manager *s_man
     int8_t player_id = get_player_id_from_fd(client_fd);
     if (recv_payload(client_fd, length, &msg) != 0) return;
     if (s_manager->state != SERVER_STATE_GAME) {
-        if (s_manager->last_winner == -1) return;
-        uint8_t *hdr = make_hdr(0, MSG_WINNER, s_manager->last_winner);
-        client_manager_send(hdr, 4, NULL, 0, player_id);
+        if (s_manager->last_winner.winner == -1) return;
+        uint8_t *hdr = make_hdr(sizeof(msg_winner_t), MSG_WINNER, PLAYER_ID_BROADCAST);
+        client_manager_send(hdr, 4, (void*)&s_manager->last_winner, sizeof(msg_winner_t), player_id);
         free_hdr(hdr);
         return;
     }
+    if (msg.player_id == s_manager->player_1) {
+        s_manager->last_winner.score_player_1 = msg.counters.score;
+    }
+    if (msg.player_id == s_manager->player_2) {
+        s_manager->last_winner.score_player_2 = msg.counters.score;
+    }
+    s_manager->last_winner.total_time = msg.counters.total_time_elapsed;
     printf("[message_handler] sending board sync, player_id=%d, score=%d\n", msg.player_id, msg.counters.score);
     uint8_t *hdr = make_hdr(sizeof(msg_sync_board_t), MSG_SYNC_BOARD, PLAYER_ID_BROADCAST);
     client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_sync_board_t), client_fd);
     free_hdr(hdr);
 }
 
-void handle_msg_send_garbage(uint16_t length, int client_fd, server_manager *s_manager) {
-    msg_send_garbage_t msg;
-    if (recv_payload(client_fd, length, &msg) != 0) return;
+void handle_msg_send_garbage(uint16_t length, int client_fd, server_manager *s_manager, uint8_t garbage) {
+    (void)length;
+    // msg_send_garbage_t msg;
+    // if (recv_payload(client_fd, length, &msg) != 0) return;
 
     int8_t player_id = get_player_id_from_fd(client_fd);
-    printf("[message_handler] garbage from player_id=%d, garbage=%d", player_id, msg.garbage_amount);
+    printf("[message_handler] garbage from player_id=%d, garbage=%d", player_id, garbage);
     if (player_id == s_manager->player_1) {
         // from player 1 to player 2
-        uint8_t *hdr = make_hdr(sizeof(msg_send_garbage_t), MSG_SEND_GARBAGE, PLAYER_ID_BROADCAST);
-        client_manager_send(hdr, 4, (void*)&msg, sizeof(msg_send_garbage_t), s_manager->player_2);
+        uint8_t *hdr = make_hdr(0, MSG_SEND_GARBAGE, garbage);
+        client_manager_send(hdr, 4, NULL, 0, s_manager->player_2);
         free_hdr(hdr);
     }
 
     if (player_id == s_manager->player_2) {
         // from player 2 to player 1
-        uint8_t *hdr = make_hdr(sizeof(msg_send_garbage_t), MSG_SEND_GARBAGE, PLAYER_ID_BROADCAST);
-        client_manager_send(hdr, 4, (void*)&msg, sizeof(msg_send_garbage_t), s_manager->player_1);
+        uint8_t *hdr = make_hdr(0, MSG_SEND_GARBAGE, garbage);
+        client_manager_send(hdr, 4, NULL, 0, s_manager->player_1);
         free_hdr(hdr);
     }
 }
@@ -248,14 +256,19 @@ void handle_msg_set_lose(int client_fd, server_manager *s_manager) {
     int8_t winner_id = -1;
 
     if (s_manager->player_1 == loser_id) {
-        winner_id = s_manager->player_2;
+        winner_id = 1;
     }
     if (s_manager->player_2 == loser_id) {
-        winner_id = s_manager->player_1;
+        winner_id = 0;
     }
 
     if (winner_id == -1) return;
     declare_winner_versus(s_manager, winner_id);
+}
+
+void handle_msg_req_lobby(int client_fd, server_manager *s_manager) {
+    (void)client_fd;
+    sync_lobby(s_manager);   
 }
 
 void message_handler_dispatch(int client_fd, server_manager *s_manager) {
@@ -289,7 +302,7 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
 
     uint16_t length = (hdr[0] << 8) | hdr[1];
     uint8_t  type   = hdr[2];
-    uint8_t  src    = get_player_id_from_fd(client_fd);
+    uint8_t  src    = hdr[3];
 
     (void)src;
 
@@ -308,13 +321,16 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             handle_msg_sync_board(length, client_fd, s_manager);
             break;
         case MSG_SEND_GARBAGE:
-            handle_msg_send_garbage(length, client_fd, s_manager);
+            handle_msg_send_garbage(length, client_fd, s_manager, src);
             break;
         case MSG_REQ_BOARD:
             handle_msg_req_board(client_fd, s_manager);
             break;
         case MSG_SET_LOSE:
             handle_msg_set_lose(client_fd, s_manager);
+            break;
+        case MSG_REQ_LOBBY:
+            handle_msg_req_lobby(client_fd, s_manager);
             break;
         default:
             skip_msg(length, client_fd);

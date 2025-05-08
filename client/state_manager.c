@@ -226,9 +226,9 @@ void handle_state_game_versus(state_manager *s_manager) {
     }
 }
 
-void handle_winner_versus(state_manager *s_manager, int8_t winner) {
-    (void) winner;
-    // open_menu(s_manager->menu_manager, make_endscreen(board));
+void handle_winner_versus(state_manager *s_manager, msg_winner_t *msg) {
+
+    open_menu(s_manager->menu_manager, make_endscreen_versus(msg));
     if (s_manager->board_1) deconstruct_tetris_board(s_manager->board_1);
     s_manager->board_1 = NULL;
     if (s_manager->board_2) deconstruct_tetris_board(s_manager->board_2);

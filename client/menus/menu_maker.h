@@ -1,7 +1,7 @@
 #pragma once
 #include "../tetris/board.h"
 #include "textbox.h"
-#include "../tetris/board.h"
+#include "../../shared/protocol.h"
 
 enum {
     CLOSE_MENU = -1,
@@ -15,7 +15,8 @@ enum {
     ATTEMPT_JOIN = 8,
     TOGGLE_READY = 9,
     TOGGLE_PLAYER_STATE = 10,
-    SAVE_SETTINGS = 11
+    SAVE_SETTINGS = 11,
+    CLOSE_VERSUS_ENDSCREEN = 12,
 };
 
 enum {
@@ -25,6 +26,7 @@ enum {
     KEYBINDINGS_MENU_ID = 3,
     JOIN_LOBBY_MENU_ID = 4,
     LOBBY_MENU_ID = 5,
+    ENDSCREEN_VERSUS_MENU_ID = 6,
 };
 
 enum {
@@ -58,6 +60,7 @@ void free_menu_manager(menu_manager *manager);
 textbox *make_main_menu();
 textbox *make_settings_menu();
 textbox *make_endscreen(tetris_board *board);
+textbox *make_endscreen_versus(msg_winner_t *msg);
 textbox *make_lobby_menu();
 void pop_menu_stack(menu_manager *manager);
 void update_lobby_menu(menu_manager *manager);

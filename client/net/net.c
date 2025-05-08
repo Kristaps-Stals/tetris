@@ -219,22 +219,28 @@ void handle_msg_sync_board(menu_manager *mgr, uint8_t *buf) {
     }
 }
 
-void handle_msg_send_garbage(menu_manager *mgr, uint8_t *buf) {
-    msg_send_garbage_t *msg = (msg_send_garbage_t*)buf;
+void handle_msg_send_garbage(menu_manager *mgr, uint8_t *buf, uint8_t garbage) {
+    (void)buf;
     state_manager *s_manager = mgr->parent;
     
     if (s_manager->board_1->is_controlled) {
-        add_garbage(s_manager->board_1, msg->garbage_amount);
+        add_garbage(s_manager->board_1, garbage);
     }
     if (s_manager->board_2->is_controlled) {
-        add_garbage(s_manager->board_2, msg->garbage_amount);
+        add_garbage(s_manager->board_2, garbage);
     }
 }
 
-void handle_msg_winner(menu_manager *mgr, uint8_t src) {
-    if (src >= 8) return;
+void handle_msg_winner(menu_manager *mgr, uint8_t *buf) {
+    msg_winner_t *msg = (msg_winner_t *)buf;
+    // if (src >= 8) return;
     state_manager *s_manager = mgr->parent;
-    handle_winner_versus(s_manager, src);
+    handle_winner_versus(s_manager, msg);
+}
+
+void req_lobby_sync(menu_manager *mgr) {
+    if (mgr->server_socket <= 0) return;
+    send_message(mgr->server_socket, MSG_REQ_LOBBY, PLAYER_ID_BROADCAST, NULL, 0);
 }
 
 static int tmp = 0;
@@ -273,10 +279,10 @@ void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint
             handle_msg_sync_board(mgr, buf);
             break;
         case MSG_SEND_GARBAGE:
-            handle_msg_send_garbage(mgr, buf);
+            handle_msg_send_garbage(mgr, buf, src);
             break;
         case MSG_WINNER:
-            handle_msg_winner(mgr, src);
+            handle_msg_winner(mgr, buf);
             break;
         default:
             break;
