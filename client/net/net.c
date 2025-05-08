@@ -160,7 +160,7 @@ void handle_msg_welcome(menu_manager *mgr, uint8_t *buf) {
     // int me = w->player_id;
     // sprintf(mgr->slot_names[me], "%s", w->player_name);
     mgr->player_id = msg->player_id;
-    mvprintw(1, 1, "%d", mgr->player_id);
+    // mvprintw(1, 1, "%d", mgr->player_id);
 }
 
 void handle_msg_hello(menu_manager *mgr, uint8_t *buf, uint8_t src) {
@@ -243,13 +243,13 @@ void req_lobby_sync(menu_manager *mgr) {
     send_message(mgr->server_socket, MSG_REQ_LOBBY, PLAYER_ID_BROADCAST, NULL, 0);
 }
 
-static int tmp = 0;
+// static int tmp = 0;
 void handle_msg(menu_manager *mgr, uint8_t type, uint8_t src, uint16_t psz, uint8_t *buf) {
     bool lobby_updated = false;
     (void)psz; // unused for now?
-    mvprintw(2, 2, "%d, %d", tmp, type);
-    refresh();
-    tmp++;
+    // mvprintw(2, 2, "%d, %d", tmp, type);
+    // refresh();
+    // tmp++;
 
     switch(type) {
         case MSG_WELCOME:

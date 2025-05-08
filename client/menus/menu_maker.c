@@ -113,8 +113,8 @@ textbox *make_settings_menu() {
     // nickname input field
     elems[2] = make_element(
         WRITE_ELEMENT_ID,
-        make_size_info(1, 18, 2, w-20),
-        make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN - 2, WRITE_ID_NICKNAME),
+        make_size_info(1, 16, 2, w-19),
+        make_write_elem((char*)get_nickname(), 16, WRITE_ID_NICKNAME),
         make_neighbours(6, -1, 4, -1), 
         A_NORMAL
     );
