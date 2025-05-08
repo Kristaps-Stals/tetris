@@ -89,13 +89,14 @@ void client_manager_remove(int sockfd, server_manager *s_manager) {
 }
 
 
+static uint8_t gbuf[1024];
 
 void client_manager_send(const uint8_t *hdr, int hdr_len,
                          const uint8_t *payload, int payload_len,
                          int player_id) {
     const client_t *client = client_manager_get(player_id);
     if (client == NULL || client->exists == false) return;
-
+    (void) hdr_len;
     fd_set wfds;
     FD_ZERO(&wfds);
     FD_SET(client->sockfd, &wfds);
@@ -103,13 +104,13 @@ void client_manager_send(const uint8_t *hdr, int hdr_len,
     select(client->sockfd+1, NULL, &wfds, NULL, &timeout);
     if (!FD_ISSET(client->sockfd, &wfds)) return;
 
-    // memcpy(gbuf, hdr, 4);
-    // if (payload_len > 0) memcpy(gbuf+4, payload, payload_len);
-    // send(client->sockfd, gbuf, hdr_len+payload_len, MSG_NOSIGNAL);
-    send(client->sockfd, hdr, hdr_len, MSG_NOSIGNAL);
-    if (payload_len > 0){
-        send(client->sockfd, payload, payload_len, MSG_NOSIGNAL);
-    }
+    memcpy(gbuf, hdr, 4);
+    if (payload_len > 0) memcpy(gbuf+4, payload, payload_len);
+    send(client->sockfd, gbuf, 4+payload_len, MSG_NOSIGNAL);
+    // send(client->sockfd, hdr, hdr_len, MSG_NOSIGNAL);
+    // if (payload_len > 0){
+    //     send(client->sockfd, payload, payload_len, MSG_NOSIGNAL);
+    // }
 }
 
 void client_manager_broadcast(const uint8_t *hdr, int hdr_len,

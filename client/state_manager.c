@@ -201,11 +201,11 @@ void control_board_versus(tetris_board *board, state_manager *s_manager) {
     int ret = update_board(upd, &is_changed);
     free(upd);
     
-    static int64_t cooldown = 200*1e3;
+    static int64_t cooldown = 100*1e3;
     cooldown -= s_manager->delta_time;
     if (is_changed && cooldown <= 0 && ret != 1) {    
         sync_board(board, s_manager);
-        cooldown = 200*1e3; // 200 ms
+        cooldown = 100*1e3; // 200 ms
     }
 
     if (ret == 1) {
