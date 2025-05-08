@@ -12,6 +12,7 @@
 #include "../menus/menu_maker.h"
 #include "../state_manager.h"
 #include "../tetris/board.h"
+#include "../menus/settings.h"
 
 char *copy_text(const char *src);
 
@@ -141,7 +142,7 @@ void attempt_join_lobby(menu_manager *manager) {
         } else {
             fcntl(sockfd, F_SETFL, O_NONBLOCK);
             manager->server_socket = sockfd;
-            send_hello(sockfd, "TetrisClient 1.0", "PlayerOne");
+            send_hello(sockfd, "TetrisClient 1.0", get_nickname());
             open_menu(manager, make_lobby_menu());
             update_lobby_menu(manager);
         }

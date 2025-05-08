@@ -54,4 +54,5 @@ void save_settings() {
 
 void init_settings() {
     load_settings();
+    save_settings();
 }

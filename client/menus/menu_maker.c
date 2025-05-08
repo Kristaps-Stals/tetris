@@ -113,8 +113,8 @@ textbox *make_settings_menu() {
     // nickname input field
     elems[2] = make_element(
         WRITE_ELEMENT_ID,
-        make_size_info(1, 16, 2, 13),
-        make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN - 1, WRITE_ID_NICKNAME),
+        make_size_info(1, 18, 2, w-20),
+        make_write_elem((char*)get_nickname(), NICKNAME_MAX_LEN - 2, WRITE_ID_NICKNAME),
         make_neighbours(6, -1, 4, -1), 
         A_NORMAL
     );
@@ -134,7 +134,7 @@ textbox *make_settings_menu() {
         BUTTON_ID,
         make_size_info(1, 4, h - 2, w - 1 - 4 - 1),
         make_button("back", CLOSE_MENU),
-        make_neighbours(6, 3, 6, 3), // up→edit(6), right→save(3), down→edit(6), left→save(3)
+        make_neighbours(2, 3, 6, 3),
         A_NORMAL
     );
 
@@ -156,7 +156,7 @@ textbox *make_settings_menu() {
         A_NORMAL
     );
 
-    return make_textbox(pos, elems, ELEM_CNT, 2, SETTINGS_MENU_ID);
+    return make_textbox(pos, elems, ELEM_CNT, 6, SETTINGS_MENU_ID);
 }
 
 textbox *make_endscreen(tetris_board *board) {
@@ -437,18 +437,16 @@ void update_save_button_visibility(menu_manager *manager) {
     if (new_nick) free(new_nick);
 }
 
-void save_nickname_if_changed(menu_manager *manager, bool update_button) {
+void save_nickname_if_changed(menu_manager *manager) {
     int len = 0;
     char* new_nick = fetch_text_from_element(manager, WRITE_ID_NICKNAME, &len);
     if (new_nick && len > 0) {
         if (strncmp(last_saved_nick, new_nick, NICKNAME_MAX_LEN) != 0) {
             set_nickname(new_nick);
-            save_settings();
             strncpy(last_saved_nick, new_nick, NICKNAME_MAX_LEN);
         }
         free(new_nick);
     }
-    if (update_button) update_save_button_visibility(manager);
 }
 
 // tries to open <new_menu>, returns true on success, false on failure
@@ -568,10 +566,9 @@ int manage_menus(menu_manager *manager, int user_input) {
             toggle_player_state(manager);
             break;
         case SAVE_SETTINGS:
-            if (manager->stack[manager->top]->id == SETTINGS_MENU_ID) {
-                save_nickname_if_changed(manager, true);
-                pop_menu_stack(manager);
-            }
+            save_nickname_if_changed(manager);
+            save_settings();
+            pop_menu_stack(manager);
             break;
         case CLOSE_MENU:
             break;
