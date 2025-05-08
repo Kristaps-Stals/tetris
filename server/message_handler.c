@@ -9,8 +9,11 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "server_manager.h"
+#include <sys/socket.h>
 // #include "../client/net/net.h" 
 // TODO: MOVE TO SHARED. you can implement building payloads not with write, but with send_message() from net.h
+
+static uint8_t gbuf[512];
 
 int recv_payload(int sockfd, uint16_t length, void *out_payload) {
     if (sockfd < 0) return -1;
@@ -123,8 +126,11 @@ void message_handler_handle_hello(int client_fd, server_manager *s_manager) {
     memcpy(welcome.player_name, hello.player_name, sizeof(welcome.player_name));
 
     uint8_t *resp_hdr = make_hdr(sizeof(welcome), MSG_WELCOME, player_id);
-    write(client_fd, resp_hdr, 4);
-    write(client_fd, &welcome, sizeof(welcome));
+    memcpy(gbuf, resp_hdr, 4);
+    memcpy(gbuf+4, &welcome, sizeof(welcome));
+    send(client_fd, gbuf, 4+sizeof(welcome), MSG_NOSIGNAL);
+    // write(client_fd, resp_hdr, 4);
+    // write(client_fd, &welcome, sizeof(welcome));
     free_hdr(resp_hdr);
 
     // printf("Sent MSG_WELCOME: player_id=%d, name=%s, length=%d\n", welcome.player_id, welcome.player_name, welcome.length);
@@ -193,9 +199,17 @@ void handle_msg_toggle_player(uint16_t length, int client_fd, server_manager *s_
     }
 }
 
-void handle_msg_sync_board(uint16_t length, int client_fd) {
+void handle_msg_sync_board(uint16_t length, int client_fd, server_manager *s_manager) {
     msg_sync_board_t msg;
+    int8_t player_id = get_player_id_from_fd(client_fd);
     if (recv_payload(client_fd, length, &msg) != 0) return;
+    if (s_manager->state != SERVER_STATE_GAME) {
+        if (s_manager->last_winner == -1) return;
+        uint8_t *hdr = make_hdr(0, MSG_WINNER, s_manager->last_winner);
+        client_manager_send(hdr, 4, NULL, 0, player_id);
+        free_hdr(hdr);
+        return;
+    }
     printf("[message_handler] sending board sync, player_id=%d, score=%d\n", msg.player_id, msg.counters.score);
     uint8_t *hdr = make_hdr(sizeof(msg_sync_board_t), MSG_SYNC_BOARD, PLAYER_ID_BROADCAST);
     client_manager_broadcast(hdr, 4, (void*)&msg, sizeof(msg_sync_board_t), client_fd);
@@ -249,6 +263,7 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
     ssize_t n = read(client_fd, hdr, sizeof hdr);
 
     if (n == 0) {
+        printf("clean\n");
         client_manager_remove(client_fd, s_manager); // peer closed cleanly
         sync_lobby(s_manager);
         return;
@@ -259,14 +274,16 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             return;
         }
         // real error
-        client_manager_remove(client_fd, s_manager);
-        sync_lobby(s_manager);
+        printf("real_error\n");
+        // client_manager_remove(client_fd, s_manager);
+        // sync_lobby(s_manager);
         return;
     }
     if (n < (ssize_t)sizeof hdr) {
+        printf("partial_header\n");
         // partial header, give up on this client
-        client_manager_remove(client_fd, s_manager);
-        sync_lobby(s_manager);
+        // client_manager_remove(client_fd, s_manager);
+        // sync_lobby(s_manager);
         return;
     }
 
@@ -288,7 +305,7 @@ void message_handler_dispatch(int client_fd, server_manager *s_manager) {
             sync_lobby(s_manager);
             break;
         case MSG_SYNC_BOARD:
-            handle_msg_sync_board(length, client_fd);
+            handle_msg_sync_board(length, client_fd, s_manager);
             break;
         case MSG_SEND_GARBAGE:
             handle_msg_send_garbage(length, client_fd, s_manager);

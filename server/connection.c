@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 int connection_listen(int port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -64,6 +65,7 @@ void connection_loop(int listen_fd,
             printf("[connection] Accepted %s:%d\n",
                    inet_ntoa(cliaddr.sin_addr),
                    ntohs(cliaddr.sin_port));
+            // fcntl(client_fd, F_SETFL, O_NONBLOCK);
             on_new(client_fd, s_manager);
         }
     }

@@ -14,6 +14,7 @@ typedef struct {
     int64_t start_game_time_left; // in microseconds
     int64_t start_game_time_max;
     int last_time_char_sent;
+    int last_winner;
 } server_manager;
 
 server_manager* make_server_manager();

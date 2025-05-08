@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 
 static client_t clients[MAX_CLIENTS];
 static int      count;
@@ -87,6 +88,8 @@ void client_manager_remove(int sockfd, server_manager *s_manager) {
     count--;
 }
 
+
+
 void client_manager_send(const uint8_t *hdr, int hdr_len,
                          const uint8_t *payload, int payload_len,
                          int player_id) {
@@ -100,9 +103,12 @@ void client_manager_send(const uint8_t *hdr, int hdr_len,
     select(client->sockfd+1, NULL, &wfds, NULL, &timeout);
     if (!FD_ISSET(client->sockfd, &wfds)) return;
 
-    write(client->sockfd, hdr, hdr_len);
+    // memcpy(gbuf, hdr, 4);
+    // if (payload_len > 0) memcpy(gbuf+4, payload, payload_len);
+    // send(client->sockfd, gbuf, hdr_len+payload_len, MSG_NOSIGNAL);
+    send(client->sockfd, hdr, hdr_len, MSG_NOSIGNAL);
     if (payload_len > 0){
-        write(client->sockfd, payload, payload_len);
+        send(client->sockfd, payload, payload_len, MSG_NOSIGNAL);
     }
 }
 

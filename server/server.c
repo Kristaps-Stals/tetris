@@ -9,6 +9,9 @@
 #include "server_manager.h"
 #include <time.h>
 
+const int frame_time = 25; // desired time between frames in ms, too low causes flickering
+const struct timespec sleeptime = {0, frame_time*1e6};
+
 // converts timespec struct into a long long
 int64_t time_ll(struct timespec *x) {
     return (int64_t)1e9*x->tv_sec+x->tv_nsec;
@@ -51,6 +54,8 @@ void server_run(void) {
             message_handler_dispatch,
             s_manager
         );
+
+        nanosleep(&sleeptime, NULL);
     }
     free_server_manager(s_manager);
 }

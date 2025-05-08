@@ -75,7 +75,7 @@ int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_p
     if (sockfd < 0) return -1;
 
     uint8_t hdr[4];
-    ssize_t r = read(sockfd, hdr, 4);
+    ssize_t r = recv(sockfd, hdr, 4, MSG_NOSIGNAL);
     if (r != 4) return -1;
     uint16_t length = (hdr[0] << 8) | hdr[1];
     *out_type   = hdr[2];
@@ -83,7 +83,7 @@ int recv_message(int sockfd, uint8_t *out_type, uint8_t *out_source, void *out_p
 
     uint16_t payload_len = length;
     if (payload_len > 0 && out_payload && out_payload_size) {
-        r = read(sockfd, out_payload, payload_len);
+        r = recv(sockfd, out_payload, payload_len, MSG_NOSIGNAL);
         if (r != payload_len) return -1;
     }
     *out_payload_size = payload_len;
