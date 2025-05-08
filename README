@@ -1,0 +1,32 @@
+Tetris!
+
+Projekts izstrādāts LSP kursa mērķiem. Autori ir: Kristaps Štals, Ivo Mezits.
+
+Palaišanas instrukcijas:
+
+sudo apt update
+sudo apt install build-essential libncurses5-dev libncursesw5-dev
+
+---
+
+cd tetris/server
+make # nokompilē servera daļu
+./tetris_server <porta_vertiba> # palaiz serveru uz norādītā porta
+
+---
+
+cd tetris/client
+make # nokompilē klienta daļu
+./tetris_client # palaiz spēles klientu
+
+---
+
+Alternatīvi, varam izmantot Docker:
+Piemērām:
+docker build -t tetris .
+docker run --rm -it tetris ./server/tetris_server <porta_vertiba>
+docker run --rm -it tetris ./client/tetris_client
+Ja nepieciešams ieiet konteinera čaulā -> docker run --rm -it tetris bash
+
+
+

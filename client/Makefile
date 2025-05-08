@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -std=c2x -I. -I../shared -g
+CFLAGS = -Wall -Wextra -std=gnu2x -I. -I../shared -g
 LDFLAGS = -lncurses
 PROG_NAME = tetris_client
 ALL_OBJECTS = main.o state_manager.o protocol.o board.o tetromino_shapes.o SRS_rotation.o textbox.o menu_maker.o difficulty_manager.o net.o score.o kstring.o keyboard_manager.o settings.o

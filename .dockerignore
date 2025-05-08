@@ -1,0 +1,3 @@
+*.o
+tetris_server
+tetris_client

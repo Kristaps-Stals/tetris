@@ -383,16 +383,18 @@ int change_elem_text(menu_manager *menu_manager_, int elem_id, char *new_text) {
     if (elem_id < 0 || elem_id >= tbox->element_count) return -1;
     textbox_element *elem = tbox->elements[elem_id];
     switch(elem->type) {
-        case TEXT_ID:
+        case TEXT_ID: {
             textbox_text *info_txt = elem->info;
             free(info_txt->text);
             info_txt->text = copy_text(new_text);       
             break;
-        case BUTTON_ID:
+        }
+        case BUTTON_ID: {
             textbox_button *info_but = elem->info;
             free(info_but->text);
             info_but->text = copy_text(new_text);
             break;
+        }
     }
     return 0;
 }
